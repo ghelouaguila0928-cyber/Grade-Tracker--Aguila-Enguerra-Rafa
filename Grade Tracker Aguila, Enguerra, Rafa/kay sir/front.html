@@ -1,0 +1,116 @@
+
+
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Grading System</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f4f4f4;
+    }
+    h1 {
+      text-align: center;
+    }
+    form, table {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-top: 10px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 12px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #eee;
+    }
+  </style>
+</head>
+<body>
+  <h1>Student Grading System</h1>
+
+  <form id="gradeForm">
+    <label>Student Name
+      <input type="text" id="studentName" placeholder="Enter name" required>
+    </label>
+    <label>Student ID
+      <input type="text" id="studentId" placeholder="Enter ID" required>
+    </label>
+    <label>Subject
+      <input type="text" id="subject" placeholder="Enter subject" required>
+    </label>
+    <label>Grade
+      <input type="number" id="grade" placeholder="Enter grade" required>
+    </label>
+    <button type="submit">Add Record</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>ID</th>
+        <th>Subject</th>
+        <th>Grade</th>
+      </tr>
+    </thead>
+    <tbody id="recordsTable">
+      <!-- Records will be inserted here -->
+    </tbody>
+  </table>
+
+  <script>
+    const form = document.getElementById('gradeForm');
+    const tableBody = document.getElementById('recordsTable');
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      const name = document.getElementById('studentName').value;
+      const id = document.getElementById('studentId').value;
+      const subject = document.getElementById('subject').value;
+      const grade = document.getElementById('grade').value;
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${name}</td>
+        <td>${id}</td>
+        <td>${subject}</td>
+        <td>${grade}</td>
+      `;
+      tableBody.appendChild(row);
+
+      form.reset();
+    });
+  </script>
+</body>
+</html>
