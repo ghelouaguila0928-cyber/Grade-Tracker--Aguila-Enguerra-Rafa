@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - GradeTracker Pro</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/auth.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1><i class="fas fa-graduation-cap"></i> GradeTracker Pro</h1>
+                <h2>Create Your Account</h2>
+                <p>Join thousands of students and teachers tracking academic performance</p>
+            </div>
+            
+            <div class="auth-body">
+                <div class="social-login">
+                    <button class="social-btn google-btn">
+                        <i class="fab fa-google"></i> Sign up with Google
+                    </button>
+                    <button class="social-btn facebook-btn">
+                        <i class="fab fa-facebook-f"></i> Sign up with Facebook
+                    </button>
+                </div>
+                
+                <div class="divider">
+                    <span>or sign up with email</span>
+                </div>
+                
+                <form id="signup-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="signup-name">Full Name</label>
+                        <input type="text" id="signup-name" class="form-control" placeholder="Enter your full name" required>
+                        <div class="input-hint">This will be displayed on your profile</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signup-email">Email Address</label>
+                        <input type="email" id="signup-email" class="form-control" placeholder="your.email@school.edu" required>
+                        <div class="input-hint">Use your school email for best experience</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" id="signup-password" class="form-control" placeholder="Create a strong password" required>
+                        <div class="password-strength">
+                            <div class="strength-bar">
+                                <div class="strength-fill weak"></div>
+                            </div>
+                            <div class="strength-text">Password strength: Weak</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="signup-confirm-password">Confirm Password</label>
+                        <input type="password" id="signup-confirm-password" class="form-control" placeholder="Re-enter your password" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>I am a</label>
+                        <div class="role-options">
+                            <div class="role-option selected" data-role="student">
+                                <i class="fas fa-user-graduate"></i>
+                                <span>Student</span>
+                            </div>
+                            <div class="role-option" data-role="teacher">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                                <span>Teacher</span>
+                            </div>
+                        </div>
+                        <input type="hidden" id="signup-role" value="student" required>
+                    </div>
+                    
+                    <div class="terms-checkbox">
+                        <input type="checkbox" id="agree-terms" required>
+                        <label for="agree-terms">
+                            I agree to the <a href="#" class="terms-link">Terms of Service</a> and 
+                            <a href="#" class="terms-link">Privacy Policy</a>. I understand that my data will be 
+                            processed in accordance with these policies.
+                        </label>
+                    </div>
+                    
+                    <div class="terms-checkbox">
+                        <input type="checkbox" id="email-consent">
+                        <label for="email-consent">
+                            Send me occasional updates about new features and educational resources 
+                            (you can unsubscribe at any time)
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-secondary submit-btn">
+                        <i class="fas fa-user-plus"></i> Create Account
+                        <a href="index.html"></a>
+                    </button>
+                </form>
+                
+                <div class="auth-switch">
+                    Already have an account? <a href="login.html">Log in here</a>
+                </div>
+                
+                <div class="auth-back">
+                    <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Homepage</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Security Badges -->
+        <div class="security-notice">
+            <div class="security-badges">
+                <div class="security-badge">
+                    <i class="fas fa-shield-alt"></i>
+                    <span>256-bit SSL Encryption</span>
+                </div>
+                <div class="security-badge">
+                    <i class="fas fa-lock"></i>
+                    <span>Your Data is Protected</span>
+                </div>
+                <div class="security-badge">
+                    <i class="fas fa-user-shield"></i>
+                    <span>GDPR Compliant</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        src="js/auth.js"
+
+        // Role selection
+        document.querySelectorAll('.role-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selected class from all options
+                document.querySelectorAll('.role-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                
+                // Add selected class to clicked option
+                this.classList.add('selected');
+                
+                // Update hidden input value
+                const role = this.getAttribute('data-role');
+                document.getElementById('signup-role').value = role;
+            });
+        });
+        
+        // Password strength indicator
+        const passwordInput = document.getElementById('signup-password');
+        const strengthBar = document.querySelector('.strength-fill');
+        const strengthText = document.querySelector('.strength-text');
+        
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            let strength = 0;
+            
+            // Length check
+            if (password.length >= 8) strength += 25;
+            if (password.length >= 12) strength += 15;
+            
+            // Character variety checks
+            if (/[a-z]/.test(password)) strength += 15;
+            if (/[A-Z]/.test(password)) strength += 15;
+            if (/[0-9]/.test(password)) strength += 15;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 15;
+            
+            // Update strength indicator
+            strengthBar.style.width = strength + '%';
+            
+            if (strength < 40) {
+                strengthBar.className = 'strength-fill weak';
+                strengthText.textContent = 'Password strength: Weak';
+            } else if (strength < 70) {
+                strengthBar.className = 'strength-fill medium';
+                strengthText.textContent = 'Password strength: Medium';
+            } else {
+                strengthBar.className = 'strength-fill strong';
+                strengthText.textContent = 'Password strength: Strong';
+            }
+        });
+        
+        // Form validation
+        document.getElementById('signup-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+            const termsAgreed = document.getElementById('agree-terms').checked;
+            
+            // Check if passwords match
+            if (password !== confirmPassword) {
+                alert('Passwords do not match. Please make sure both passwords are identical.');
+                return;
+            }
+            
+            // Check if terms are agreed
+            if (!termsAgreed) {
+                alert('Please agree to the Terms of Service and Privacy Policy to continue.');
+                return;
+            }
+            
+            // If all validations pass, redirect to appropriate dashboard
+            const role = document.getElementById('signup-role').value;
+            if (role === 'student') {
+                window.location.href = 'student-dashboard.html';
+            } else {
+                window.location.href = 'teacher-dashboard.html';
+            }
+        });
+        
+        
+        // Social login buttons
+        document.querySelectorAll('.social-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const platform = this.classList.contains('google-btn') ? 'Google' : 'Facebook';
+                alert(`In a real application, this would connect to ${platform} authentication. For this demo, please use the email signup form.`);
+            });
+        });
+    </script>
+</body>
+</html>
