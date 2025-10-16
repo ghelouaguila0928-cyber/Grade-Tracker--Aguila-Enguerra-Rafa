@@ -115,8 +115,8 @@ nav ul li a:hover {
     justify-content: center;
     flex-direction: column;
     padding: 0 20px;
-    height: 70vh; /* ✅ Full screen height */
-    min-height: 600px; /* Keeps good size on smaller screens */
+    height: 70vh; 
+    min-height: 600px; 
 }
 
 
@@ -499,4 +499,5 @@ footer p {
                 order: -1;
             }
         }
+
    
