@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard - GradeTracker Pro</title>
+  <link rel="stylesheet" href="css/student.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body>
+  <!-- Student Dashboard -->
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>
+          <div class="logo">GT</div>
+          <span>GradeTracker Pro</span>
+        </h1>
+        <div class="subtitle">Student Portal</div>
+      </div>
+
+      <nav class="nav">
+        <a href="#" class="nav-item active" data-page="dashboard">
+          <i class="fas fa-home"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#" class="nav-item" data-page="grades">
+          <i class="fas fa-chart-bar"></i>
+          <span>My Grades</span>
+        </a>
+        <a href="#" class="nav-item" data-page="assignments">
+          <i class="fas fa-clipboard-list"></i>
+          <span>Assignments</span>
+        </a>
+        <a href="#" class="nav-item" data-page="schedule">
+          <i class="fas fa-calendar-alt"></i>
+          <span>Schedule</span>
+        </a>
+        <a href="#" class="nav-item" data-page="messages">
+          <i class="fas fa-comments"></i>
+          <span>Messages</span>
+        </a>
+        
+        <div class="nav-divider"></div>
+        
+        <a href="#" class="nav-item" data-page="profile">
+          <i class="fas fa-user-cog"></i>
+          <span>Profile & Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar">AJ</div>
+          <div class="user-details">
+            <div class="user-name">Alex Johnson</div>
+            <div class="user-role">11th Grade Student</div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Log Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <header class="header">
+        <div class="header-title" id="pageTitle">Dashboard</div>
+        <div class="header-actions">
+          <button class="header-action-btn" title="Notifications" id="notificationsBtn">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge">2</span>
+          </button>
+          <button class="header-action-btn" title="Search" id="searchBtn">
+            <i class="fas fa-search"></i>
+          </button>
+          <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- Dashboard Page -->
+        <section id="dashboard" class="page active">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon primary">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">3.75</div>
+                <div class="stat-label">Current GPA</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon success">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">92%</div>
+                <div class="stat-label">Overall Grade</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon warning">
+                <i class="fas fa-clipboard-list"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">5</div>
+                <div class="stat-label">Pending Assignments</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon info">
+                <i class="fas fa-calendar-check"></i>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value">96%</div>
+                <div class="stat-label">Attendance Rate</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-container">
+            <div class="chart-card">
+              <div class="chart-title">Grade Distribution</div>
+              <div class="chart-placeholder">
+                <i class="fas fa-chart-pie"></i>
+                <div>Grade distribution chart</div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Performance Trend</div>
+              <div class="chart-placeholder">
+                <i class="fas fa-chart-line"></i>
+                <div>Performance trend chart</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Recent Grades</div>
+              <div class="section-actions">
+                <button class="btn btn-secondary btn-sm">View All</button>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Assignment</th>
+                    <th>Grade</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="recentGradesTableBody">
+                  <!-- Recent grades will be populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Upcoming Assignments</div>
+              <div class="section-actions">
+                <button class="btn btn-secondary btn-sm">View All</button>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Assignment</th>
+                    <th>Due Date</th>
+                    <th>Priority</th>
+                    <th>Progress</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="upcomingAssignmentsTableBody">
+                  <!-- Upcoming assignments will be populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Grades Page -->
+        <section id="grades" class="page">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">My Grades</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="downloadGradesBtn">
+                  <i class="fas fa-download"></i>
+                  Download Report
+                </button>
+                <button class="btn btn-secondary btn-sm" id="printGradesBtn">
+                  <i class="fas fa-print"></i>
+                  Print Grades
+                </button>
+              </div>
+            </div>
+            
+            <div class="semester-selector">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="courseSelect">Course</label>
+                  <select id="courseSelect" class="form-control">
+                    <option value="">Select Course</option>
+                    <option value="BSIT" selected>BS Information Technology</option>
+                    <option value="BSCS">BS Computer Science</option>
+                    <option value="BSED">BS Education</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="yearSelect">Year Level</label>
+                  <select id="yearSelect" class="form-control">
+                    <option value="">Select Year</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3" selected>3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="semesterSelect">Semester</label>
+                  <select id="semesterSelect" class="form-control">
+                    <option value="">Select Semester</option>
+                    <option value="1">1st Semester</option>
+                    <option value="2" selected>2nd Semester</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="loadGradesBtn">
+                <i class="fas fa-sync-alt"></i>
+                Load Grades
+              </button>
+            </div>
+
+            <div class="table-container" id="gradesTableContainer">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Subject Code</th>
+                    <th>Subject Name</th>
+                    <th>Instructor</th>
+                    <th>Grade</th>
+                    <th>Units</th>
+                    <th>Status</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="gradesTableBody">
+                  <!-- Grades will be populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="grades-summary" id="gradesSummary">
+              <div class="summary-card">
+                <div class="summary-value" id="semesterGpa">3.75</div>
+                <div class="summary-label">Semester GPA</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-value" id="totalUnits">18</div>
+                <div class="summary-label">Total Units</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-value" id="passedSubjects">6</div>
+                <div class="summary-label">Passed Subjects</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Assignments Page -->
+        <section id="assignments" class="page">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">My Assignments</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="filterAssignmentsBtn">
+                  <i class="fas fa-filter"></i>
+                  Filter
+                </button>
+              </div>
+            </div>
+
+            <div class="assignments-tabs">
+              <div class="tab active" data-tab="pending">Pending</div>
+              <div class="tab" data-tab="completed">Completed</div>
+              <div class="tab" data-tab="overdue">Overdue</div>
+            </div>
+
+            <div class="assignments-list" id="assignmentsList">
+              <!-- Assignments will be populated by JavaScript -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Schedule Page -->
+        <section id="schedule" class="page">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Class Schedule</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="downloadScheduleBtn">
+                  <i class="fas fa-download"></i>
+                  Download Schedule
+                </button>
+              </div>
+            </div>
+
+            <div class="schedule-view">
+              <div class="schedule-header">
+                <button class="btn btn-secondary btn-sm" id="prevWeekBtn">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="schedule-title" id="scheduleTitle">This Week's Schedule</div>
+                <button class="btn btn-secondary btn-sm" id="nextWeekBtn">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+
+              <div class="schedule-grid" id="scheduleGrid">
+                <!-- Schedule will be populated by JavaScript -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Messages Page -->
+        <section id="messages" class="page">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Messages</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="newMessageBtn">
+                  <i class="fas fa-plus"></i>
+                  New Message
+                </button>
+              </div>
+            </div>
+
+            <div class="messages-container">
+              <div class="messages-sidebar">
+                <div class="messages-search">
+                  <input type="text" placeholder="Search messages..." class="form-control">
+                </div>
+                <div class="messages-list" id="messagesList">
+                  <!-- Messages list will be populated by JavaScript -->
+                </div>
+              </div>
+              <div class="messages-content">
+                <div class="message-thread" id="messageThread">
+                  <div class="no-message-selected">
+                    <i class="fas fa-comments"></i>
+                    <h3>Select a message to view</h3>
+                    <p>Choose a conversation from the list to start reading messages</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Profile Page -->
+        <section id="profile" class="page">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Profile Information</div>
+            </div>
+
+            <div class="profile-header">
+              <div class="profile-avatar">
+                <div class="avatar-large">AJ</div>
+                <div class="avatar-actions">
+                  <button class="btn btn-secondary btn-sm">
+                    <i class="fas fa-camera"></i>
+                    Change Photo
+                  </button>
+                </div>
+              </div>
+              <div class="profile-info">
+                <h3 id="profileStudentName">Alex Johnson</h3>
+                <p class="profile-meta" id="profileStudentId">Student ID: S1001</p>
+                <p class="profile-meta" id="profileCourse">BS Information Technology - 3rd Year</p>
+              </div>
+            </div>
+
+            <form id="profileForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="profileName">Full Name</label>
+                  <input type="text" id="profileName" class="form-control" value="Alex Johnson" required>
+                </div>
+                <div class="form-group">
+                  <label for="profileEmail">Email Address</label>
+                  <input type="email" id="profileEmail" class="form-control" value="alex.johnson@student.edu" required>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="profilePhone">Phone Number</label>
+                  <input type="tel" id="profilePhone" class="form-control" value="+1 (555) 123-4567">
+                </div>
+                <div class="form-group">
+                  <label for="profileBirthdate">Birthdate</label>
+                  <input type="date" id="profileBirthdate" class="form-control" value="2004-05-15">
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="profileAddress">Address</label>
+                <textarea id="profileAddress" class="form-control" rows="3">123 University Ave, Campus Town</textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">Save Profile</button>
+            </form>
+          </div>
+
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Security Settings</div>
+            </div>
+            <form id="passwordForm">
+              <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <input type="password" id="currentPassword" class="form-control" required>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="newPassword">New Password</label>
+                  <input type="password" id="newPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                  <label for="confirmPassword">Confirm New Password</label>
+                  <input type="password" id="confirmPassword" class="form-control" required>
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">Update Password</button>
+            </form>
+          </div>
+
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Notification Preferences</div>
+            </div>
+            <div class="notification-settings">
+              <div class="notification-item">
+                <div class="notification-info">
+                  <h4>Grade Updates</h4>
+                  <p>Get notified when new grades are posted</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="notification-item">
+                <div class="notification-info">
+                  <h4>Assignment Reminders</h4>
+                  <p>Receive reminders for upcoming assignments</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="notification-item">
+                <div class="notification-info">
+                  <h4>Announcements</h4>
+                  <p>Get notified about important announcements</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" checked>
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Grade Details Modal -->
+  <div class="modal" id="gradeDetailsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Grade Details</div>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="gradeDetailsContent">
+          <!-- Grade details will be populated by JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="closeGradeDetails">Close</button>
+        <button class="btn btn-primary" id="requestGradeReview">Request Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Message Modal -->
+  <div class="modal" id="newMessageModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">New Message</div>
+        <button class="close-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="newMessageForm">
+          <div class="form-group">
+            <label for="messageRecipient">To</label>
+            <select id="messageRecipient" class="form-control" required>
+              <option value="">Select Instructor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="messageSubject">Subject</label>
+            <input type="text" id="messageSubject" class="form-control" placeholder="Enter message subject" required>
+          </div>
+          <div class="form-group">
+            <label for="messageContent">Message</label>
+            <textarea id="messageContent" class="form-control" rows="6" placeholder="Type your message here..." required></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="cancelMessage">Cancel</button>
+        <button class="btn btn-primary" type="submit" form="newMessageForm">Send Message</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage">Operation completed successfully</span>
+  </div>
+
+  <script src="js/student.js"></script>
+</body>
+</html>
