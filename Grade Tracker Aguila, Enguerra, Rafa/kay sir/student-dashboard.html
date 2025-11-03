@@ -11,7 +11,7 @@
   <!-- Student Dashboard -->
   <div class="dashboard">
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <div class="brand">
         <h1>
           <div class="logo">GT</div>
@@ -66,13 +66,13 @@
     </aside>
 
     <!-- Main Content -->
-    <main class="main-content">
+    <main class="main-content" id="mainContent">
       <header class="header">
         <div class="header-title" id="pageTitle">Dashboard</div>
         <div class="header-actions">
           <button class="header-action-btn" title="Notifications" id="notificationsBtn">
             <i class="fas fa-bell"></i>
-            <span class="notification-badge">2</span>
+            <span class="notification-badge" id="notificationsCount">2</span>
           </button>
           <button class="header-action-btn" title="Search" id="searchBtn">
             <i class="fas fa-search"></i>
@@ -92,7 +92,7 @@
                 <i class="fas fa-chart-line"></i>
               </div>
               <div class="stat-info">
-                <div class="stat-value">3.75</div>
+                <div class="stat-value" id="currentGpa">3.75</div>
                 <div class="stat-label">Current GPA</div>
               </div>
             </div>
@@ -101,7 +101,7 @@
                 <i class="fas fa-check-circle"></i>
               </div>
               <div class="stat-info">
-                <div class="stat-value">92%</div>
+                <div class="stat-value" id="overallGrade">92%</div>
                 <div class="stat-label">Overall Grade</div>
               </div>
             </div>
@@ -110,7 +110,7 @@
                 <i class="fas fa-clipboard-list"></i>
               </div>
               <div class="stat-info">
-                <div class="stat-value">5</div>
+                <div class="stat-value" id="pendingAssignmentsCount">5</div>
                 <div class="stat-label">Pending Assignments</div>
               </div>
             </div>
@@ -119,7 +119,7 @@
                 <i class="fas fa-calendar-check"></i>
               </div>
               <div class="stat-info">
-                <div class="stat-value">96%</div>
+                <div class="stat-value" id="attendanceRate">96%</div>
                 <div class="stat-label">Attendance Rate</div>
               </div>
             </div>
@@ -146,7 +146,7 @@
             <div class="section-header">
               <div class="section-title">Recent Grades</div>
               <div class="section-actions">
-                <button class="btn btn-secondary btn-sm">View All</button>
+                <button class="btn btn-secondary btn-sm" data-page-link="grades">View All</button>
               </div>
             </div>
             <div class="table-container">
@@ -172,7 +172,7 @@
             <div class="section-header">
               <div class="section-title">Upcoming Assignments</div>
               <div class="section-actions">
-                <button class="btn btn-secondary btn-sm">View All</button>
+                <button class="btn btn-secondary btn-sm" data-page-link="assignments">View All</button>
               </div>
             </div>
             <div class="table-container">
@@ -249,7 +249,7 @@
             </div>
 
             <div class="table-container" id="gradesTableContainer">
-              <table>
+              <table id="gradesTable">
                 <thead>
                   <tr>
                     <th>Subject Code</th>
@@ -356,7 +356,7 @@
             <div class="messages-container">
               <div class="messages-sidebar">
                 <div class="messages-search">
-                  <input type="text" placeholder="Search messages..." class="form-control">
+                  <input type="text" placeholder="Search messages..." class="form-control" id="messageSearchInput">
                 </div>
                 <div class="messages-list" id="messagesList">
                   <!-- Messages list will be populated by JavaScript -->
@@ -462,7 +462,7 @@
                   <p>Get notified when new grades are posted</p>
                 </div>
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" checked id="notifGradeUpdates">
                   <span class="slider"></span>
                 </label>
               </div>
@@ -472,7 +472,7 @@
                   <p>Receive reminders for upcoming assignments</p>
                 </div>
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" checked id="notifAssignmentReminders">
                   <span class="slider"></span>
                 </label>
               </div>
@@ -482,7 +482,7 @@
                   <p>Get notified about important announcements</p>
                 </div>
                 <label class="toggle-switch">
-                  <input type="checkbox" checked>
+                  <input type="checkbox" checked id="notifAnnouncements">
                   <span class="slider"></span>
                 </label>
               </div>
@@ -493,12 +493,15 @@
     </main>
   </div>
 
+  <!-- Overlays for modals -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+
   <!-- Grade Details Modal -->
   <div class="modal" id="gradeDetailsModal">
     <div class="modal-content">
       <div class="modal-header">
         <div class="modal-title">Grade Details</div>
-        <button class="close-modal">&times;</button>
+        <button class="close-modal" data-close-modal>&times;</button>
       </div>
       <div class="modal-body">
         <div id="gradeDetailsContent">
@@ -506,7 +509,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" id="closeGradeDetails">Close</button>
+        <button class="btn btn-secondary" id="closeGradeDetails" data-close-modal>Close</button>
         <button class="btn btn-primary" id="requestGradeReview">Request Review</button>
       </div>
     </div>
@@ -517,7 +520,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <div class="modal-title">New Message</div>
-        <button class="close-modal">&times;</button>
+        <button class="close-modal" data-close-modal>&times;</button>
       </div>
       <div class="modal-body">
         <form id="newMessageForm">
@@ -538,7 +541,7 @@
         </form>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" id="cancelMessage">Cancel</button>
+        <button class="btn btn-secondary" id="cancelMessage" data-close-modal>Cancel</button>
         <button class="btn btn-primary" type="submit" form="newMessageForm">Send Message</button>
       </div>
     </div>
@@ -549,7 +552,7 @@
     <i class="fas fa-check-circle"></i>
     <span id="toastMessage">Operation completed successfully</span>
   </div>
-
-  <script src="js/student.js"></script>
+<script type="module" src="js/firebase.js"></script>
+<script type="module" src="js/student.js"></script>
 </body>
 </html>
