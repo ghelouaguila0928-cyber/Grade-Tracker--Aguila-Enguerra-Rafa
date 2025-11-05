@@ -20,6 +20,7 @@
   --radius-sm: 8px;
 }
 
+/* RESET */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -31,14 +32,19 @@ body {
   background: var(--bg);
   color: var(--text);
   line-height: 1.5;
+  /* this lets us slide the sidebar in mobile by adding .sidebar-open in JS */
+  transition: background 0.15s ease;
 }
 
 .dashboard {
   display: flex;
   min-height: 100vh;
+  /* because sidebar is fixed now */
 }
 
-/* Sidebar */
+/* ============================= */
+/* SIDEBAR */
+/* ============================= */
 .sidebar {
   width: 280px;
   background: var(--sidebar);
@@ -48,8 +54,16 @@ body {
   flex-direction: column;
   transition: all 0.3s ease;
   z-index: 1000;
+  /* make it fixed so it can slide on mobile */
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  /* default: visible on desktop */
+  transform: translateX(0);
 }
 
+/* state when we manually collapse (desktop) */
 .sidebar.collapsed {
   width: 80px;
 }
@@ -70,8 +84,8 @@ body {
   padding: 0 8px;
 }
 
-.sidebar.collapsed .sidebar-footer {
-  padding: 16px 16px 0;
+.sidebar.collapsed ~ .main-content {
+  margin-left: 80px;
 }
 
 .brand {
@@ -216,13 +230,34 @@ body {
   transform: translateY(-1px);
 }
 
-/* Main Content */
+/* overlay for mobile */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* ============================= */
+/* MAIN CONTENT */
+/* ============================= */
 .main-content {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: all 0.3s ease;
+  /* because sidebar is fixed */
+  margin-left: 280px;
+  min-height: 100vh;
 }
 
 .header {
@@ -233,6 +268,8 @@ body {
   justify-content: space-between;
   align-items: center;
   z-index: 10;
+  position: sticky;
+  top: 0;
 }
 
 .header-title {
@@ -290,7 +327,9 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Dashboard Cards */
+/* ============================= */
+/* DASHBOARD CARDS */
+/* ============================= */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -369,7 +408,9 @@ body {
   font-weight: 500;
 }
 
-/* Content Sections */
+/* ============================= */
+/* CONTENT SECTION */
+/* ============================= */
 .content-section {
   background: var(--card);
   border-radius: var(--radius);
@@ -389,6 +430,8 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .section-title {
@@ -400,9 +443,12 @@ body {
 .section-actions {
   display: flex;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
-/* Buttons */
+/* ============================= */
+/* BUTTONS */
+/* ============================= */
 .btn {
   padding: 10px 16px;
   border-radius: var(--radius-sm);
@@ -461,32 +507,14 @@ body {
   transform: translateY(-2px);
 }
 
-.btn-success {
-  background: var(--success);
-  color: white;
-}
-
-.btn-success:hover {
-  background: #34d399;
-  transform: translateY(-2px);
-}
-
-.btn-danger {
-  background: var(--danger);
-  color: white;
-}
-
-.btn-danger:hover {
-  background: #f87171;
-  transform: translateY(-2px);
-}
-
 .btn-sm {
   padding: 8px 12px;
   font-size: 0.875rem;
 }
 
-/* Tables */
+/* ============================= */
+/* TABLES */
+/* ============================= */
 .table-container {
   overflow-x: auto;
   border-radius: var(--radius-sm);
@@ -497,6 +525,7 @@ body {
 table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 650px;
 }
 
 th, td {
@@ -504,6 +533,7 @@ th, td {
   text-align: left;
   border-bottom: 1px solid var(--border);
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 th {
@@ -523,7 +553,9 @@ tr:hover {
   transform: scale(1.01);
 }
 
-/* Forms */
+/* ============================= */
+/* FORMS */
+/* ============================= */
 .form-group {
   margin-bottom: 16px;
 }
@@ -561,7 +593,9 @@ label {
   flex: 1;
 }
 
-/* Badges */
+/* ============================= */
+/* BADGES */
+/* ============================= */
 .badge {
   display: inline-block;
   padding: 4px 10px;
@@ -597,7 +631,9 @@ label {
   color: #3730a3;
 }
 
-/* Charts */
+/* ============================= */
+/* CHARTS */
+/* ============================= */
 .charts-container {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -642,7 +678,9 @@ label {
   opacity: 0.5;
 }
 
-/* Modal */
+/* ============================= */
+/* MODAL */
+/* ============================= */
 .modal {
   display: none;
   position: fixed;
@@ -657,7 +695,8 @@ label {
   animation: fadeIn 0.3s ease;
 }
 
-.modal.active {
+.modal.active,
+.modal.show {
   display: flex;
 }
 
@@ -717,7 +756,9 @@ label {
   gap: 12px;
 }
 
-/* Toast */
+/* ============================= */
+/* TOAST */
+/* ============================= */
 .toast {
   position: fixed;
   bottom: 20px;
@@ -749,7 +790,9 @@ label {
   font-size: 1.2rem;
 }
 
-/* Page transitions */
+/* ============================= */
+/* PAGES */
+/* ============================= */
 .page {
   display: none;
   animation: pageTransition 0.4s ease;
@@ -764,8 +807,16 @@ label {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive */
+/* ============================= */
+/* RESPONSIVE */
+/* ============================= */
+
+/* desktop → tablet */
 @media (max-width: 1024px) {
+  /* don’t auto-collapse fully, just shrink content margin */
+  .main-content {
+    margin-left: 80px;
+  }
   .sidebar {
     width: 80px;
   }
@@ -790,68 +841,123 @@ label {
   }
 }
 
+/* mobile */
 @media (max-width: 768px) {
-  .dashboard {
-    flex-direction: column;
-  }
+  /* sidebar becomes off-canvas */
   .sidebar {
+    transform: translateX(-100%);
+    width: 240px;
+  }
+  /* when body gets .sidebar-open from JS */
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  body.sidebar-open {
+    overflow: hidden;
+  }
+  body.sidebar-open .sidebar-overlay {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .header {
+    gap: 10px;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  /* buttons full width */
+  .section-actions .btn,
+  .modal-footer .btn {
     width: 100%;
-    height: auto;
-    padding: 16px;
+    justify-content: center;
   }
-  .sidebar .brand h1 span,
-  .sidebar .nav-item span,
-  .sidebar .user-details,
-  .sidebar .logout-btn span,
-  .sidebar .subtitle {
-    display: block;
-  }
-  .nav {
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: 8px;
-  }
-  .nav-divider {
-    display: none;
-  }
-  .sidebar-footer {
-    display: none;
-  }
-  .stats-grid {
-    grid-template-columns: 1fr;
-  }
+
   .form-row {
     flex-direction: column;
-    gap: 0;
   }
+
+  .charts-container {
+    grid-template-columns: 1fr;
+  }
+
+  /* nav horizontal scroll if you still want to show it at top */
+  .nav {
+    flex-direction: column;
+  }
+
+  .table-container {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .modal-content {
     width: 95%;
     margin: 20px;
   }
 }
 
-/* Loading animations */
-.loading {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: #fff;
-  animation: spin 1s ease-in-out infinite;
+/* super small */
+@media (max-width: 480px) {
+  .header-title {
+    font-size: 1.1rem;
+  }
+  .header-actions {
+    gap: 8px;
+  }
+  .btn {
+    font-size: 0.78rem;
+  }
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+/* mobile sidebar for teacher */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.sidebar-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
 }
 
-/* Pulse animation for notifications */
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
-}
-
-.pulse {
-  animation: pulse 2s infinite;
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    width: 240px;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    z-index: 901;
+  }
+  .sidebar.is-open {
+    transform: translateX(0);
+  }
+  .main-content {
+    margin-left: 0;
+  }
+  .section-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .section-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
