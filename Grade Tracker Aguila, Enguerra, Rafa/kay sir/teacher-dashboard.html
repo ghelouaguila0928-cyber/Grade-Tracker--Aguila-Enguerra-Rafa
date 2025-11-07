@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 </head>
 <body>
-  <!-- Teacher Dash -->
   <div class="dashboard">
     <!-- Sidebar -->
     <aside class="sidebar">
@@ -21,33 +20,19 @@
       </div>
 
       <nav class="nav">
-        <a href="#" class="nav-item active" data-page="dashboard">
-          <i class="fas fa-home"></i>
-          <span>Dashboard</span>
-        </a>
-        <a href="#" class="nav-item" data-page="students">
+        <a href="#" class="nav-item active" data-page="students">
           <i class="fas fa-users"></i>
           <span>Students</span>
         </a>
-        <a href="#" class="nav-item" data-page="grades">
-          <i class="fas fa-chart-bar"></i>
-          <span>Grade Management</span>
-        </a>
-        <a href="#" class="nav-item" data-page="subjects">
-          <i class="fas fa-book"></i>
-          <span>Subjects</span>
-        </a>
-        <a href="#" class="nav-item" data-page="analytics">
-          <i class="fas fa-chart-pie"></i>
-          <span>Analytics</span>
+        <a href="#" class="nav-item" data-page="schedule">
+          <i class="fas fa-calendar-alt"></i>
+          <span>Schedule</span>
         </a>
         <a href="#" class="nav-item" data-page="messages">
           <i class="fas fa-comments"></i>
           <span>Messages</span>
         </a>
-        
         <div class="nav-divider"></div>
-        
         <a href="#" class="nav-item" data-page="settings">
           <i class="fas fa-cog"></i>
           <span>Settings</span>
@@ -72,15 +57,8 @@
     <!-- Main Content -->
     <main class="main-content">
       <header class="header">
-        <div class="header-title" id="pageTitle">Dashboard</div>
+        <div class="header-title" id="pageTitle">Students</div>
         <div class="header-actions">
-          <button class="header-action-btn" title="Notifications" id="notificationsBtn">
-            <i class="fas fa-bell"></i>
-            <span class="notification-badge">3</span>
-          </button>
-          <button class="header-action-btn" title="Search" id="searchBtn">
-            <i class="fas fa-search"></i>
-          </button>
           <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar">
             <i class="fas fa-bars"></i>
           </button>
@@ -88,130 +66,17 @@
       </header>
 
       <div class="content">
-        <!-- Dashboard Page -->
-        <section id="dashboard" class="page active">
-          <div class="stats-grid">
-            <div class="stat-card">
-              <div class="stat-icon primary">
-                <i class="fas fa-users"></i>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">42</div>
-                <div class="stat-label">Total Students</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon success">
-                <i class="fas fa-book"></i>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">6</div>
-                <div class="stat-label">Subjects</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon warning">
-                <i class="fas fa-clipboard-list"></i>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">18</div>
-                <div class="stat-label">Pending Grading</div>
-              </div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-icon danger">
-                <i class="fas fa-exclamation-circle"></i>
-              </div>
-              <div class="stat-info">
-                <div class="stat-value">5</div>
-                <div class="stat-label">At Risk Students</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="charts-container">
-            <div class="chart-card">
-              <div class="chart-title">Grade Distribution</div>
-              <div class="chart-placeholder">
-                <i class="fas fa-chart-pie"></i>
-                <div>Grade distribution chart</div>
-              </div>
-            </div>
-            <div class="chart-card">
-              <div class="chart-title">Performance Trend</div>
-              <div class="chart-placeholder">
-                <i class="fas fa-chart-line"></i>
-                <div>Performance trend chart</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="content-section">
-            <div class="section-header">
-              <div class="section-title">Recent Activity</div>
-              <div class="section-actions">
-                <button class="btn btn-secondary btn-sm">View All</button>
-              </div>
-            </div>
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>Activity</th>
-                    <th>Subject</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Alex Johnson</td>
-                    <td>Assignment Submission</td>
-                    <td>Mathematics</td>
-                    <td>Oct 15, 2023</td>
-                    <td><span class="badge badge-success">Graded</span></td>
-                  </tr>
-                  <tr>
-                    <td>Sarah Miller</td>
-                    <td>Quiz Attempt</td>
-                    <td>Physics</td>
-                    <td>Oct 14, 2023</td>
-                    <td><span class="badge badge-warning">Pending</span></td>
-                  </tr>
-                  <tr>
-                    <td>Michael Brown</td>
-                    <td>Grade Inquiry</td>
-                    <td>Chemistry</td>
-                    <td>Oct 13, 2023</td>
-                    <td><span class="badge badge-primary">Resolved</span></td>
-                  </tr>
-                  <tr>
-                    <td>Adrian A. Rafa</td>
-                    <td>Assignment Submission</td>
-                    <td>Computer</td>
-                    <td>Oct 12, 2023</td>
-                    <td><span class="badge badge-warning">Pending</span></td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
         <!-- Students Page -->
-        <section id="students" class="page">
+        <section id="students" class="page active">
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Student Management</div>
               <div class="section-actions">
                 <button class="btn btn-primary btn-sm" id="addStudentBtn">
-                  <i class="fas fa-plus"></i>
-                  Add Student
+                  <i class="fas fa-plus"></i> Add Student
                 </button>
                 <button class="btn btn-secondary btn-sm">
-                  <i class="fas fa-download"></i>
-                  Export
+                  <i class="fas fa-download"></i> Export
                 </button>
               </div>
             </div>
@@ -229,26 +94,21 @@
                   </tr>
                 </thead>
                 <tbody id="studentsTableBody">
-                  <!-- Students will be populated by JavaScript -->
+                  <!-- Students populated by JS -->
                 </tbody>
               </table>
             </div>
           </div>
         </section>
 
-        <!-- Grade Management Page -->
-        <section id="grades" class="page">
+        <!-- Schedule Page -->
+        <section id="schedule" class="page">
           <div class="content-section">
             <div class="section-header">
-              <div class="section-title">Grade Management</div>
+              <div class="section-title">Class Schedule</div>
               <div class="section-actions">
-                <button class="btn btn-primary btn-sm" id="addGradeBtn">
-                  <i class="fas fa-plus"></i>
-                  Add Grade
-                </button>
-                <button class="btn btn-secondary btn-sm">
-                  <i class="fas fa-upload"></i>
-                  Bulk Import
+                <button class="btn btn-primary btn-sm" id="addScheduleBtn">
+                  <i class="fas fa-plus"></i> Add Schedule
                 </button>
               </div>
             </div>
@@ -256,104 +116,16 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Student</th>
+                    <th>Day</th>
+                    <th>Time</th>
                     <th>Subject</th>
-                    <th>Assignment</th>
-                    <th>Year</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="gradesTableBody">
-                  <!-- Grades will be populated by JavaScript -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- Subjects Page -->
-        <section id="subjects" class="page">
-          <div class="content-section">
-            <div class="section-header">
-              <div class="section-title">Subject Management</div>
-              <div class="section-actions">
-                <button class="btn btn-primary btn-sm" id="addSubjectBtn">
-                  <i class="fas fa-plus"></i>
-                  Add Subject
-                </button>
-              </div>
-            </div>
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Subject Code</th>
-                    <th>Subject Name</th>
+                    <th>Room</th>
                     <th>Year Level</th>
-                    <th>Students</th>
-                    <th>Average Grade</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody id="subjectsTableBody">
-                  <!-- Subjects will be populated by JavaScript -->
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
-
-        <!-- Analytics Page -->
-        <section id="analytics" class="page">
-          <div class="content-section">
-            <div class="section-header">
-              <div class="section-title">Performance Analytics</div>
-              <div class="section-actions">
-                <button class="btn btn-secondary btn-sm">
-                  <i class="fas fa-download"></i>
-                  Export Report
-                </button>
-              </div>
-            </div>
-            <div class="charts-container">
-              <div class="chart-card">
-                <div class="chart-title">Class Performance</div>
-                <div class="chart-placeholder">
-                  <i class="fas fa-chart-bar"></i>
-                  <div>Class performance chart</div>
-                </div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-title">Grade Distribution</div>
-                <div class="chart-placeholder">
-                  <i class="fas fa-chart-pie"></i>
-                  <div>Grade distribution chart</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="content-section">
-            <div class="section-header">
-              <div class="section-title">Student Performance</div>
-            </div>
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>Mathematics</th>
-                    <th>Physics</th>
-                    <th>Chemistry</th>
-                    <th>Biology</th>
-                    <th>Average</th>
-                    <th>Trend</th>
-                  </tr>
-                </thead>
-                <tbody id="analyticsTableBody">
-                  <!-- Analytics data will be populated by JavaScript -->
+                <tbody id="scheduleTableBody">
+                  <!-- Schedule data populated by JS -->
                 </tbody>
               </table>
             </div>
@@ -367,8 +139,7 @@
               <div class="section-title">Messages</div>
               <div class="section-actions">
                 <button class="btn btn-primary btn-sm" id="newMessageBtn">
-                  <i class="fas fa-plus"></i>
-                  New Message
+                  <i class="fas fa-plus"></i> New Message
                 </button>
               </div>
             </div>
@@ -385,7 +156,7 @@
                   </tr>
                 </thead>
                 <tbody id="messagesTableBody">
-                  <!-- Messages will be populated by JavaScript -->
+                  <!-- Messages populated by JS -->
                 </tbody>
               </table>
             </div>
@@ -465,11 +236,11 @@
         <form id="addStudentForm">
           <div class="form-group">
             <label for="studentName">Full Name</label>
-            <input type="text" id="studentName" class="form-control" placeholder="Enter student name" required>
+            <input type="text" id="studentName" class="form-control" required>
           </div>
           <div class="form-group">
-            <label for="studentEmail">Email Address</label>
-            <input type="email" id="studentEmail" class="form-control" placeholder="Enter student email" required>
+            <label for="studentEmail">Email</label>
+            <input type="email" id="studentEmail" class="form-control" required>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -484,7 +255,7 @@
             </div>
             <div class="form-group">
               <label for="studentId">Student ID</label>
-              <input type="text" id="studentId" class="form-control" placeholder="Enter student ID" required>
+              <input type="text" id="studentId" class="form-control" required>
             </div>
           </div>
         </form>
@@ -496,57 +267,62 @@
     </div>
   </div>
 
-  <!-- Add Grade Modal -->
-  <div class="modal" id="addGradeModal">
+  <!-- Add Schedule Modal -->
+  <div class="modal" id="addScheduleModal">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="modal-title">Add New Grade</div>
+        <div class="modal-title">Add New Schedule</div>
         <button class="close-modal">&times;</button>
       </div>
       <div class="modal-body">
-        <form id="addGradeForm">
-          <div class="form-group">
-            <label for="gradeStudent">Student</label>
-            <select id="gradeStudent" class="form-control" required>
-              <option value="">Select Student</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="gradeSubject">Subject</label>
-            <select id="gradeSubject" class="form-control" required>
-              <option value="">Select Subject</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="gradeAssignment">Assignment</label>
-            <input type="text" id="gradeAssignment" class="form-control" placeholder="Enter assignment name" required>
+        <form id="addScheduleForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="scheduleDay">Day</label>
+              <select id="scheduleDay" class="form-control" required>
+                <option value="">Select Day</option>
+                <option>Monday</option>
+                <option>Tuesday</option>
+                <option>Wednesday</option>
+                <option>Thursday</option>
+                <option>Friday</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="scheduleTime">Time</label>
+              <input type="text" id="scheduleTime" class="form-control" placeholder="e.g. 8:00 AM - 9:30 AM" required>
+            </div>
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="gradeScore">Grade</label>
-              <input type="number" id="gradeScore" class="form-control" placeholder="Enter grade" min="0" max="100" required>
+              <label for="scheduleSubject">Subject</label>
+              <input type="text" id="scheduleSubject" class="form-control" required>
             </div>
             <div class="form-group">
-              <label for="gradeDate">Date</label>
-              <input type="date" id="gradeDate" class="form-control" required>
+              <label for="scheduleRoom">Room</label>
+              <input type="text" id="scheduleRoom" class="form-control" required>
             </div>
+          </div>
+          <div class="form-group">
+            <label for="scheduleYear">Year Level</label>
+            <select id="scheduleYear" class="form-control" required>
+              <option value="">Select Year</option>
+              <option>1st Year</option>
+              <option>2nd Year</option>
+              <option>3rd Year</option>
+              <option>4th Year</option>
+            </select>
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" id="cancelAddGrade">Cancel</button>
-        <button class="btn btn-primary" type="submit" form="addGradeForm">Add Grade</button>
+        <button class="btn btn-secondary" type="button" id="cancelAddSchedule">Cancel</button>
+        <button class="btn btn-primary" type="submit" form="addScheduleForm">Add Schedule</button>
       </div>
     </div>
   </div>
 
-  <!-- Toast Notification -->
-  <div id="toast" class="toast">
-    <i class="fas fa-check-circle"></i>
-    <span id="toastMessage">Operation completed successfully</span>
-  </div>
-
- <script type="module" src="js/firebase.js"></script>
-<script type="module" src="js/teacher.js"></script>
+  <script type="module" src="js/firebase.js"></script>
+  <script type="module" src="js/teacher.js"></script>
 </body>
 </html>
