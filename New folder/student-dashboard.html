@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard — Grade Viewer</title>
+
+  <!-- Student Dashboard Theme -->
+  <link rel="stylesheet" href="css/student.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <h1><span>Grade Viewer</span></h1>
+        <div class="subtitle">Student Portal</div>
+      </div>
+
+      <nav class="nav" aria-label="Main">
+        <a href="#" class="nav-item active" data-page="grades">
+          <i class="fas fa-chart-bar"></i>
+          <span>My Grades</span>
+        </a>
+        <a href="#" class="nav-item" data-page="schedule">
+          <i class="fas fa-calendar-alt"></i>
+          <span>Schedule</span>
+        </a>
+        <a href="#" class="nav-item" data-page="messages">
+          <i class="fas fa-comments"></i>
+          <span>Messages</span>
+        </a>
+
+        <div class="nav-divider" role="separator"></div>
+
+        <a href="#" class="nav-item" data-page="profile">
+          <i class="fas fa-user-cog"></i>
+          <span>Profile & Settings</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="sidebarAvatar">AJ</div>
+          <div class="user-details">
+            <div class="user-name" id="sidebarName">Alex Johnson</div>
+            <!-- UPDATED: show Student ID here -->
+            <div class="user-role" id="sidebarRole">ID: S1001</div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn" title="Log out">
+          <i class="fas fa-sign-out-alt"></i>
+          <span>Log Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content" id="mainContent">
+      <header class="header">
+        <div class="header-title" id="pageTitle">My Grades</div>
+        <div class="header-actions">
+          <button class="header-action-btn" title="Notifications" id="notificationsBtn">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge" id="notificationsCount">2</span>
+          </button>
+          <button class="header-action-btn" title="Search" id="searchBtn">
+            <i class="fas fa-search"></i>
+          </button>
+          <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar">
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- GRADES -->
+        <section id="grades" class="page active" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">My Grades</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="downloadGradesBtn">
+                  <i class="fas fa-download"></i> Download Report
+                </button>
+                <button class="btn btn-secondary btn-sm" id="printGradesBtn">
+                  <i class="fas fa-print"></i> Print Grades
+                </button>
+              </div>
+            </div>
+
+            <div class="semester-selector">
+              <div class="form-row">
+                <!-- Keep these selectors if you’re filtering tables; safe to leave -->
+                <div class="form-group">
+                  <label for="courseSelect">Course</label>
+                  <select id="courseSelect" class="form-control">
+                    <option value="">Select Course</option>
+                    <option value="BSIT">BS Information Technology</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="yearSelect">Year Level</label>
+                  <select id="yearSelect" class="form-control">
+                    <option value="">Select Year</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="semesterSelect">Semester</label>
+                  <select id="semesterSelect" class="form-control">
+                    <option value="">Select Semester</option>
+                    <option value="1">1st Semester</option>
+                    <option value="2">2nd Semester</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="loadGradesBtn">
+                <i class="fas fa-sync-alt"></i> Load Grades
+              </button>
+            </div>
+
+    
+        </section>
+
+        <!-- SCHEDULE -->
+        <section id="schedule" class="page" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Class Schedule</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="downloadScheduleBtn">
+                  <i class="fas fa-download"></i> Download Schedule
+                </button>
+              </div>
+            </div>
+
+            <div class="schedule-view">
+              <div class="schedule-header">
+                <button class="btn btn-secondary btn-sm" id="prevWeekBtn" title="Previous">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="schedule-title" id="scheduleTitle">This Week's Schedule</div>
+                <button class="btn btn-secondary btn-sm" id="nextWeekBtn" title="Next">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+              <div class="schedule-grid" id="scheduleGrid">
+                <!-- schedule cells rendered by JS -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MESSAGES -->
+        <section id="messages" class="page" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Messages</div>
+              <div class="section-actions">
+                <button class="btn btn-primary btn-sm" id="newMessageBtn">
+                  <i class="fas fa-plus"></i> New Message
+                </button>
+              </div>
+            </div>
+
+            <div class="messages-container">
+              <div class="messages-sidebar">
+                <div class="messages-search">
+                  <input type="text" placeholder="Search messages..." class="form-control" id="messageSearchInput" />
+                </div>
+                <div class="messages-list" id="messagesList">
+                  <!-- filled by JS -->
+                </div>
+              </div>
+              <div class="messages-content">
+                <div class="message-thread" id="messageThread">
+                  <div class="no-message-selected">
+                    <i class="fas fa-comments"></i>
+                    <h3>Select a message to view</h3>
+                    <p>Choose a conversation from the list to start reading messages</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROFILE -->
+        <section id="profile" class="page" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Profile Information</div>
+            </div>
+
+            <div class="profile-header">
+              <div class="profile-avatar">
+                <div class="avatar-large" id="profileInitials">AJ</div>
+                <div class="avatar-actions">
+                  <button class="btn btn-secondary btn-sm" id="changePhotoBtn">
+                    <i class="fas fa-camera"></i> Change Photo
+                  </button>
+                </div>
+              </div>
+              <div class="profile-info">
+                <h3 id="profileStudentName">Alex Johnson</h3>
+                <!-- UPDATED: Student ID displayed here under the name -->
+                <p class="profile-meta" id="profileStudentIdSubtitle">Student ID: S1001</p>
+                <!-- REMOVED: Course line -->
+              </div>
+            </div>
+
+            <form id="profileForm">
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="profileName">Full Name</label>
+                  <input type="text" id="profileName" class="form-control" value="Alex Johnson" required />
+                </div>
+                <div class="form-group">
+                  <label for="profileEmail">Email Address</label>
+                  <input type="email" id="profileEmail" class="form-control" value="alex.johnson@student.edu" required />
+                </div>
+              </div>
+
+              <!-- NEW: Student ID Number input controls the subtitle + sidebar ID -->
+              <div class="form-group">
+                <label for="profileStudentIdInput">Student ID Number</label>
+                <input type="text" id="profileStudentIdInput" class="form-control" placeholder="e.g. 2025-00123" />
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="profilePhone">Phone Number</label>
+                  <input type="tel" id="profilePhone" class="form-control" />
+                </div>
+                <div class="form-group">
+                  <label for="profileBirthdate">Birthdate</label>
+                  <input type="date" id="profileBirthdate" class="form-control" />
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="profileAddress">Address</label>
+                <textarea id="profileAddress" class="form-control" rows="3"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">Save Profile</button>
+            </form>
+          </div>
+
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Security Settings</div>
+            </div>
+            <form id="passwordForm">
+              <div class="form-group">
+                <label for="currentPassword">Current Password</label>
+                <input type="password" id="currentPassword" class="form-control" required />
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="newPassword">New Password</label>
+                  <input type="password" id="newPassword" class="form-control" required />
+                </div>
+                <div class="form-group">
+                  <label for="confirmPassword">Confirm New Password</label>
+                  <input type="password" id="confirmPassword" class="form-control" required />
+                </div>
+              </div>
+              <button type="submit" class="btn btn-primary">Update Password</button>
+            </form>
+          </div>
+
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Notification Preferences</div>
+            </div>
+            <div class="notification-settings">
+              <div class="notification-item">
+                <div class="notification-info">
+                  <h4>Grade Updates</h4>
+                  <p>Get notified when new grades are posted</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" checked id="notifGradeUpdates" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="notification-item">
+                <div class="notification-info">
+                  <h4>Announcements</h4>
+                  <p>Get notified about important announcements</p>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" checked id="notifAnnouncements" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Overlay -->
+  <div class="modal-overlay" id="modalOverlay"></div>
+
+  <!-- Grade Details Modal -->
+  <div class="modal" id="gradeDetailsModal" aria-hidden="true" role="dialog" aria-labelledby="gradeDetailsTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="gradeDetailsTitle">Grade Details</div>
+        <button class="close-modal" data-close-modal aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="gradeDetailsContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal>Close</button>
+        <button class="btn btn-primary" id="requestGradeReview">Request Review</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New Message Modal -->
+  <div class="modal" id="newMessageModal" aria-hidden="true" role="dialog" aria-labelledby="newMessageTitle">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title" id="newMessageTitle">New Message</div>
+        <button class="close-modal" data-close-modal aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="newMessageForm">
+          <div class="form-group">
+            <label for="messageRecipient">To</label>
+            <select id="messageRecipient" class="form-control" required>
+              <option value="">Select Instructor</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="messageSubject">Subject</label>
+            <input type="text" id="messageSubject" class="form-control" placeholder="Enter message subject" required />
+          </div>
+          <div class="form-group">
+            <label for="messageContent">Message</label>
+            <textarea id="messageContent" class="form-control" rows="6" placeholder="Type your message here..." required></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close-modal>Cancel</button>
+        <button class="btn btn-primary" type="submit" form="newMessageForm">Send Message</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage">Operation completed successfully</span>
+  </div>
+
+  <!-- Firebase + App logic -->
+  <script type="module" src="js/firebase.js"></script>
+  <script type="module" src="js/student.js"></script>
+
+  <!-- Minimal wiring (safe with student.js) -->
+  <script>
+    document.getElementById('toggleSidebar')?.addEventListener('click', () => {
+      document.getElementById('sidebar')?.classList.toggle('collapsed');
+    });
+
+    const navLinks = document.querySelectorAll('.nav-item');
+    const pages   = document.querySelectorAll('.page');
+    const pageTitle = document.getElementById('pageTitle');
+
+    function showPage(key) {
+      pages.forEach(p => p.classList.toggle('active', p.id === key));
+      navLinks.forEach(a => a.classList.toggle('active', a.dataset.page === key));
+      const titles = {
+        grades: 'My Grades',
+        schedule: 'Class Schedule',
+        messages: 'Messages',
+        profile: 'Profile & Settings'
+      };
+      pageTitle.textContent = titles[key] || 'Dashboard';
+    }
+
+    navLinks.forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(a.dataset.page);
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      const openBtn = e.target.closest('[data-open-modal]');
+      if (openBtn) {
+        const sel = openBtn.getAttribute('data-open-modal');
+        const modal = document.querySelector(sel);
+        if (modal) {
+          modal.classList.add('active');
+          modal.setAttribute('aria-hidden', 'false');
+          document.getElementById('modalOverlay')?.classList.add('active');
+        }
+      }
+      if (e.target.matches('[data-close-modal], .modal')) {
+        document.querySelectorAll('.modal').forEach(m => { m.classList.remove('active'); m.setAttribute('aria-hidden','true'); });
+        document.getElementById('modalOverlay')?.classList.remove('active');
+      }
+    });
+
+    // Ripple origin
+    document.addEventListener('pointerdown', (e) => {
+      const btn = e.target.closest('.btn');
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      btn.style.setProperty('--x', ((e.clientX - rect.left)/rect.width*100) + '%');
+      btn.style.setProperty('--y', ((e.clientY - rect.top)/rect.height*100) + '%');
+    });
+
+    showPage('grades');
+  </script>
+</body>
+</html>
