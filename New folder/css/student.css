@@ -412,3 +412,63 @@ input:checked + .slider:before { transform: translateX(26px); }
   .grades-summary { grid-template-columns: 1fr; }
   .schedule-grid { grid-template-columns: 60px repeat(5, 1fr); font-size: .78rem; }
 }
+/* Summary of Grades: filters + card */
+.filters-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+@media (max-width: 800px) {
+  .filters-row { grid-template-columns: 1fr; }
+}
+
+.summary-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+.summary-meta { margin-bottom: 8px; }
+.summary-table tfoot th { background: #fafafa; font-weight: 700; }
+.summary-table .text-right { text-align: right; }
+
+/* Print: only the summary card */
+@media print {
+  body * { visibility: hidden !important; }
+  #summaryCard, #summaryCard * { visibility: visible !important; }
+  #summaryCard { position: absolute; left: 0; top: 0; width: 100%; }
+}
+/* ===== Summary of Grades (compact look like screenshot) ===== */
+.table-container.summary-compact {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.summary-table thead th {
+  background: #f2f8f4; /* soft green tint */
+  color: #0f3422;      /* deep green text */
+  font-weight: 800;
+}
+
+.summary-table tbody td {
+  background: #f8fbf9;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* Print: only the summary card */
+@media print {
+  body * { visibility: hidden !important; }
+  #summaryCard, #summaryCard * { visibility: visible !important; }
+  #summaryCard { position: absolute; left: 0; top: 0; width: 100%; }
+}

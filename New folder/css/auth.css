@@ -185,3 +185,23 @@ html, body { width: 100%; overflow-x: hidden; }
   .form-row.two-col { grid-template-columns: 1fr; }
 }
 
+/* invalid field state */
+.form-control.is-invalid {
+  border: 2px solid #e63946 !important;
+  outline: none;
+}
+
+/* error message */
+.field-error {
+  color: #e63946;
+  font-size: .85rem;
+  margin-top: .35rem;
+}
+
+/* checkbox invalid (terms) */
+.terms-checkbox.is-invalid label {
+  outline: 2px solid #e63946;
+  outline-offset: 4px;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
