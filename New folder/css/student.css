@@ -472,3 +472,10 @@ input:checked + .slider:before { transform: translateX(26px); }
   #summaryCard, #summaryCard * { visibility: visible !important; }
   #summaryCard { position: absolute; left: 0; top: 0; width: 100%; }
 }
+/* Messenger-like bubbles */
+.thread{display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:70%;padding:10px 12px;border-radius:16px;box-shadow:0 2px 6px rgba(0,0,0,.06);}
+.bubble.me{align-self:flex-end;background:#dff6e9;border-bottom-right-radius:6px}
+.bubble.them{align-self:flex-start;background:#f1f5f4;border-bottom-left-radius:6px}
+.bubble-body{white-space:pre-wrap;word-wrap:break-word}
+.bubble-meta{font-size:.72rem;opacity:.7;margin-top:4px}
