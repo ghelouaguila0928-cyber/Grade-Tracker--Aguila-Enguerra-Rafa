@@ -7,13 +7,31 @@
   <title>Admin Portal — Grade Viewer</title>
   <link rel="stylesheet" href="css/admin.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    /* tiny helpers to match admin.js behavior */
+    .notification-badge{display:none;min-width:18px;height:18px;border-radius:9px;background:#e11d48;color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:6px;padding:0 5px}
+    .header-actions{display:flex;gap:8px;align-items:center}
+    .btn-xxs{font-size:11px;padding:2px 6px;line-height:1;border-radius:6px}
+    .form-control{min-height:34px}
+    .nowrap{white-space:nowrap}
+    .muted{color:#6b7280}
+
+    /* Mobile/off-canvas sidebar behavior */
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:40}
+    .sidebar-overlay.show{display:block}
+    .sidebar{transition:transform .25s ease;will-change:transform}
+    @media (max-width:1024px){
+      .sidebar{transform:translateX(-100%)}
+      body.sidebar-open .sidebar{transform:translateX(0)}
+    }
+  </style>
 </head>
 <body>
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
   <div class="dashboard">
     <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar" id="sidebar" aria-label="Sidebar">
       <div class="brand">
         <h1><span>Grade Viewer</span></h1>
         <div class="subtitle">Admin Portal</div>
@@ -30,7 +48,6 @@
           <i class="fas fa-comments"></i><span>Messages</span>
         </a>
         <div class="nav-divider" role="separator"></div>
-       
       </nav>
 
       <div class="sidebar-footer">
@@ -52,9 +69,13 @@
       <header class="header">
         <div class="header-title" id="pageTitle">Student Management</div>
         <div class="header-actions">
-          <button class="header-action-btn" title="Notifications"><i class="fas fa-bell"></i><span class="notification-badge" id="notifCount">0</span></button>
-          <button class="header-action-btn" title="Search"><i class="fas fa-search"></i></button>
-          <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar"><i class="fas fa-bars"></i></button>
+          <button class="header-action-btn" title="Notifications" id="notifBtn" aria-label="Notifications">
+            <i class="fas fa-bell"></i>
+            <span class="notification-badge" id="notifCount" aria-live="polite">0</span>
+          </button>
+          <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar" aria-label="Toggle Sidebar" aria-controls="sidebar">
+            <i class="fas fa-bars"></i>
+          </button>
         </div>
       </header>
 
@@ -80,6 +101,7 @@
                   <option>2nd Year</option>
                   <option>3rd Year</option>
                   <option>4th Year</option>
+                  <option>5th Year</option>
                 </select>
               </div>
 
@@ -91,7 +113,7 @@
               <div class="form-group">
                 <label for="studentsSort">Sort</label>
                 <select id="studentsSort" class="form-control">
-                  <option value="year">Year (1 → 4)</option>
+                  <option value="year">Year (1 → 5)</option>
                   <option value="name">Name (A → Z)</option>
                   <option value="id">Student ID</option>
                 </select>
@@ -142,6 +164,7 @@
                   <option>2nd Year</option>
                   <option>3rd Year</option>
                   <option>4th Year</option>
+                  <option>5th Year</option>
                 </select>
               </div>
               <div class="form-group">
@@ -154,6 +177,8 @@
                 </select>
               </div>
             </div>
+
+            <div id="semAvgBar" class="muted" style="margin:6px 0 10px 0;"></div>
 
             <div class="table-container">
               <table>
@@ -248,8 +273,12 @@
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Messages</div>
-              <div class="section-actions">
-                <button class="btn btn-primary btn-sm" id="newMessageBtn"><i class="fas fa-plus"></i> New Message</button>
+              <div class="section-actions" style="display:flex;gap:8px;align-items:center;">
+                <select id="messagesShow" class="form-control" style="min-width:140px;">
+                  <option value="all">Show: All</option>
+                  <option value="unread">Show: Unread only</option>
+                </select>
+                <input id="messagesSearch" class="form-control" placeholder="Search student name/email…" style="min-width:260px;">
               </div>
             </div>
             <div class="table-container">
@@ -257,22 +286,56 @@
                 <thead>
                   <tr>
                     <th>From</th>
-                    <th>Subject</th>
-                    <th>Message</th>
                     <th>Date</th>
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="messagesTableBody">
-                  <tr><td colspan="6">No messages.</td></tr>
+                  <tr><td colspan="4">No messages.</td></tr>
                 </tbody>
               </table>
             </div>
           </div>
         </section>
 
-    
+        <!-- MESSAGE THREAD (chat view) -->
+        <section id="message-thread" class="page" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="crumbs"><a href="#" id="backToMessagesLink">&larr; Back to Messages</a></div>
+            <div class="section-header">
+              <div class="section-title">
+                Conversation with <span id="mtStudentName">—</span>
+              </div>
+              <div class="section-actions">
+                <button class="btn btn-danger btn-sm" id="deleteThreadBtn" title="Delete this conversation">
+                  <i class="fas fa-trash"></i> Delete Conversation
+                </button>
+                <button class="btn btn-secondary btn-sm" id="markUnreadBtn" title="Show again in Messages">Mark as Unread</button>
+              </div>
+            </div>
+
+            <div class="muted" style="margin-bottom:8px;">
+              <b>Student:</b> <span id="mtStudentEmail">—</span>
+            </div>
+
+            <div id="chatBox" style="border:1px solid #e5e7eb;border-radius:12px;height:420px;overflow:auto;padding:12px;background:#fafafa;">
+              <div id="chatEmpty" class="muted">No messages yet.</div>
+              <div id="chatMessages"></div>
+            </div>
+
+            <form id="chatForm" style="margin-top:10px;display:flex;gap:8px;align-items:flex-end;">
+              <div style="flex:1;">
+                <label for="chatText" class="sr-only">Message</label>
+                <textarea id="chatText" class="form-control" rows="2" placeholder="Type your reply…" required></textarea>
+              </div>
+              <button class="btn btn-primary" type="submit"><i class="fas fa-paper-plane"></i>&nbsp;Send</button>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
 
   <!-- Modals -->
   <!-- Add Student -->
@@ -297,7 +360,11 @@
               <label for="studentGrade">Year Level</label>
               <select id="studentGrade" class="form-control" required>
                 <option value="">Select Year</option>
-                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
               </select>
             </div>
             <div class="form-group">
@@ -336,7 +403,11 @@
               <label for="sectionYear">Year</label>
               <select id="sectionYear" class="form-control" required>
                 <option value="">Select Year</option>
-                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
               </select>
             </div>
           </div>
@@ -387,7 +458,11 @@
               <label for="memberYear">Year Level</label>
               <select id="memberYear" class="form-control">
                 <option value="">Select Year</option>
-                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
               </select>
             </div>
           </div>
@@ -418,14 +493,20 @@
               <label for="sogYear">Year</label>
               <select id="sogYear" class="form-control" required>
                 <option value="">Select Year</option>
-                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
               </select>
             </div>
             <div class="form-group">
               <label for="sogSem">Semester</label>
               <select id="sogSem" class="form-control" required>
                 <option value="">Select Semester</option>
-                <option>1st Sem</option><option>2nd Sem</option><option>Summer</option>
+                <option>1st Sem</option>
+                <option>2nd Sem</option>
+                <option>Summer</option>
               </select>
             </div>
           </div>
@@ -460,7 +541,70 @@
     </div>
   </div>
 
+  <!-- Add Grade for a Section Member (used by JS) -->
+  <div class="modal" id="addMemberGradeModal" aria-hidden="true" role="dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">Add Grade for <span id="amgStudentName">Student</span></div>
+        <button class="close-modal" id="amgClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="addMemberGradeForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="amgYear">Year</label>
+              <select id="amgYear" class="form-control" required>
+                <option value="">Select Year</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="amgSem">Semester</label>
+              <select id="amgSem" class="form-control" required>
+                <option value="">Select Semester</option>
+                <option>1st Sem</option>
+                <option>2nd Sem</option>
+                <option>Summer</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="amgCourseName">Course Name</label>
+              <input id="amgCourseName" class="form-control" placeholder="e.g. Calculus 1" required />
+            </div>
+            <div class="form-group">
+              <label for="amgCourseCode">Course Code</label>
+              <input id="amgCourseCode" class="form-control" placeholder="e.g. MATH101" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="amgUnits">Units</label>
+              <input id="amgUnits" type="number" min="0" step="0.5" class="form-control" placeholder="e.g. 3" required />
+            </div>
+            <div class="form-group">
+              <label for="amgMark">Mark</label>
+              <input id="amgMark" class="form-control" placeholder="e.g. 92 or A" required />
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" id="amgCancel">Cancel</button>
+        <button class="btn btn-primary" type="submit" form="addMemberGradeForm">Add Grade</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Single JS include -->
+  <script type="module" src="js/firebase.js"></script>
   <script type="module" src="js/admin.js"></script>
 </body>
 </html>

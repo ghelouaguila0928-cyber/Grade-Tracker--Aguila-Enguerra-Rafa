@@ -25,7 +25,7 @@
         </a>
         <a href="#" class="nav-item" data-page="messages">
           <i class="fas fa-comments"></i>
-          <span>Messages</span>
+          <span>Chat</span>
         </a>
         <a href="#" class="nav-item" data-page="profile">
           <i class="fas fa-user"></i>
@@ -91,7 +91,7 @@
                   <option value="2">2nd Year</option>
                   <option value="3">3rd Year</option>
                   <option value="4">4th Year</option>
-                  <!-- <option value="5">5th Year</option>  <-- enable if needed -->
+                  <!-- <option value="5">5th Year</option> -->
                 </select>
               </div>
               <div class="form-group">
@@ -103,8 +103,8 @@
                 </select>
               </div>
               <div class="form-group" style="align-self:flex-end">
-                <button class="btn btn-primary" id="generateSummaryBtn">
-                  <i class="fas fa-wand-magic-sparkles"></i> Load
+                <button class="btn btn-primary" id="generateSummaryBtn">  
+                  <i class="fas fa-wand-magic-sparkles"></i> LOAD
                 </button>
               </div>
             </div>
@@ -138,34 +138,34 @@
           </div>
         </section>
 
-        <!-- MESSAGES -->
+        <!-- CHAT: Student -> Admin only -->
         <section id="messages" class="page" aria-labelledby="pageTitle">
           <div class="content-section">
             <div class="section-header">
-              <div class="section-title">Messages</div>
-              <div class="section-actions">
-                <button class="btn btn-primary btn-sm" id="newMessageBtn">
-                  <i class="fas fa-plus"></i> New Message
-                </button>
-              </div>
+              <div class="section-title">Chat with Admin</div>
             </div>
 
-            <div class="messages-container">
-              <div class="messages-sidebar">
-                <div class="messages-search">
-                  <input type="text" placeholder="Search messages..." class="form-control" id="messageSearchInput" />
-                </div>
-                <div class="messages-list" id="messagesList"></div>
+            <div class="chat-panel">
+              <div class="chat-status">
+                <i class="fas fa-shield-alt"></i> Messages are sent to <strong>Admin</strong>.
               </div>
-              <div class="messages-content">
-                <div class="message-thread" id="messageThread">
-                  <div class="no-message-selected">
-                    <i class="fas fa-comments"></i>
-                    <h3>Select a message to view</h3>
-                    <p>Choose a conversation from the list to start reading messages</p>
-                  </div>
+
+              <div class="chat-thread" id="chatThread">
+                <div class="no-message-selected">
+                  <i class="fas fa-comments"></i>
+                  <h3>Start chatting with Admin</h3>
+                  <p>Type a message below to begin.</p>
                 </div>
               </div>
+
+              <form id="chatForm" class="chat-composer">
+                <textarea id="chatInput" class="form-control" rows="2" placeholder="Type a message for Admin…" required></textarea>
+                <button class="btn btn-primary" id="sendChatBtn" type="submit">
+                  <i class="fas fa-paper-plane"></i> Send
+                </button>
+              </form>
+
+              <input type="hidden" id="adminUid" />
             </div>
           </div>
         </section>
@@ -209,43 +209,6 @@
     </main>
   </div>
 
-  <!-- Overlay -->
-  <div class="modal-overlay" id="modalOverlay"></div>
-
-  <!-- New Message Modal -->
-  <div class="modal" id="newMessageModal" aria-hidden="true" role="dialog" aria-labelledby="newMessageTitle">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title" id="newMessageTitle">New Message</div>
-        <button class="close-modal" data-close-modal aria-label="Close">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="newMessageForm">
-          <div class="form-group">
-            <label for="messageRecipient">To</label>
-            <select id="messageRecipient" class="form-control" required>
-              <option value="">Select Instructor</option>
-              <option value="inst1@school.edu">Prof. Cruz</option>
-              <option value="inst2@school.edu">Prof. Dela Cruz</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="messageSubject">Subject</label>
-            <input type="text" id="messageSubject" class="form-control" placeholder="Enter message subject" required />
-          </div>
-          <div class="form-group">
-            <label for="messageContent">Message</label>
-            <textarea id="messageContent" class="form-control" rows="6" placeholder="Type your message here..." required></textarea>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-close-modal>Cancel</button>
-        <button class="btn btn-primary" type="submit" form="newMessageForm">Send Message</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Toast -->
   <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
     <i class="fas fa-check-circle"></i>
@@ -257,4 +220,3 @@
   <script type="module" src="js/student.js"></script>
 </body>
 </html>
-  

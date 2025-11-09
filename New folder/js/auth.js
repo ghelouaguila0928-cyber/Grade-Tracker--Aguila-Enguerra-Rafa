@@ -1,4 +1,4 @@
-// js/auth.js (fixed: normalize year so admin table shows correct Year & Student ID)
+// js/auth.js
 import { auth, db } from "./firebase.js";
 import {
   signInWithEmailAndPassword,
@@ -16,12 +16,16 @@ import {
   serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-/* ================================ */
+/* ================================
+   Destinations
+   ================================ */
 const ADMIN_DASHBOARD   = "admin-dashboard.html";
 const TEACHER_DASHBOARD = "teacher-dashboard.html";
 const STUDENT_DASHBOARD = "student-dashboard.html";
 
-/* ================================ */
+/* ================================
+   Role helpers
+   ================================ */
 function redirectByRole(role) {
   switch ((role || "student").toLowerCase()) {
     case "admin":   window.location.href = ADMIN_DASHBOARD; break;
@@ -29,6 +33,7 @@ function redirectByRole(role) {
     default:        window.location.href = STUDENT_DASHBOARD;
   }
 }
+
 export async function goToDashboard(user) {
   try {
     const token  = await user.getIdTokenResult(true);
@@ -40,97 +45,133 @@ export async function goToDashboard(user) {
     const snap = await getDoc(ref);
     const role = (snap.exists() ? (snap.data().role || "student") : "student").toLowerCase();
     redirectByRole(role);
-  } catch {
+  } catch (err) {
+    console.error("[auth.js] goToDashboard failed:", err?.code, err?.message);
     redirectByRole("student");
   }
 }
 
-/* ================================ */
+/* ================================
+   SIGN UP (students)
+   ================================ */
 const signupForm = document.getElementById("signup-form");
 
 function clearError(el) {
   el.classList.remove("is-invalid");
   el.removeAttribute("aria-invalid");
-  const msg = el.parentElement.querySelector(".field-error");
-  if (msg) msg.remove();
+  el.parentElement?.querySelector(".field-error")?.remove();
 }
 function showError(el, message) {
   el.classList.add("is-invalid");
   el.setAttribute("aria-invalid", "true");
-  const existing = el.parentElement.querySelector(".field-error");
-  if (existing) existing.remove();
+  el.parentElement?.querySelector(".field-error")?.remove();
   const p = document.createElement("div");
   p.className = "field-error";
-  p.textContent = message || "Required";
+  p.textContent = message || "This field is required";
   el.parentElement.appendChild(p);
 }
-function validateEmailFormat(email) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+function validateSignup() {
+  let ok = true;
+  const name      = document.getElementById("signup-name");
+  const email     = document.getElementById("signup-email");
+  const pass      = document.getElementById("signup-password");
+  const pass2     = document.getElementById("signup-confirm-password");
+  const studentId = document.getElementById("signup-id");
+  const course    = document.getElementById("signup-course");
+  const year      = document.getElementById("signup-year");
+  const section   = document.getElementById("signup-section");
+  const terms     = document.getElementById("agree-terms");
+
+  [name,email,pass,pass2,studentId,course,year,section].forEach(clearError);
+
+  if (!name.value.trim())      { showError(name); ok = false; }
+  if (!studentId.value.trim()) { showError(studentId); ok = false; }
+  if (!email.value.trim())     { showError(email); ok = false; }
+  if (!course.value)           { showError(course); ok = false; }
+  if (!year.value)             { showError(year); ok = false; }
+  if (!section.value)          { showError(section); ok = false; }
+  if (!pass.value)             { showError(pass); ok = false; }
+  if (!pass2.value)            { showError(pass2); ok = false; }
+
+  if (email.value && !validEmail(email.value.trim())) {
+    showError(email, "Enter a valid email"); ok = false;
+  }
+  if (studentId.value && !/^[0-9\-]{5,20}$/.test(studentId.value.trim())) {
+    showError(studentId, "Use digits and dashes only"); ok = false;
+  }
+  if (pass.value && pass.value.length < 8) {
+    showError(pass, "Use at least 8 characters"); ok = false;
+  }
+  if (pass.value && pass2.value && pass.value !== pass2.value) {
+    showError(pass2, "Passwords do not match"); ok = false;
+  }
+  if (!terms.checked) {
+    document.querySelector(".terms-checkbox")?.classList.add("is-invalid"); ok = false;
+  }
+  return ok;
 }
 
-// normalize year label -> "1".."5"
-function yearKey(label) {
-  const v = String(label||"");
-  const m = v.match(/^(\d)/);
-  if (m) return m[1];
-  const low = v.toLowerCase();
-  if (low.includes("first")) return "1";
-  if (low.includes("second")) return "2";
-  if (low.includes("third")) return "3";
-  if (low.includes("fourth")) return "4";
-  if (low.includes("fifth")) return "5";
-  return v.replace(/[^0-9]/g,"") || "";
-}
+document.querySelectorAll("#signup-form .form-control").forEach((el) => {
+  el.addEventListener("input", () => el.classList.contains("is-invalid") && clearError(el));
+  el.addEventListener("change", () => el.classList.contains("is-invalid") && clearError(el));
+});
 
 if (signupForm) {
   signupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (!validateSignup()) {
+      signupForm.querySelector(".is-invalid")?.focus();
+      return;
+    }
 
-    const name      = document.getElementById("signup-name")?.value.trim() || "";
-    const email     = document.getElementById("signup-email")?.value.trim() || "";
-    const pass      = document.getElementById("signup-password")?.value || "";
-    const pass2     = document.getElementById("signup-confirm-password")?.value || "";
-    const studentId = document.getElementById("signup-id")?.value.trim() || "";
-    const course    = document.getElementById("signup-course")?.value || "";
-    const yearLabel = document.getElementById("signup-year")?.value || "";
-    const section   = document.getElementById("signup-section")?.value || "";
+    // Collect + normalize
+    const nameRaw      = document.getElementById("signup-name")?.value ?? "";
+    const emailRaw     = document.getElementById("signup-email")?.value ?? "";
+    const pass         = document.getElementById("signup-password")?.value ?? "";
+    const studentIdRaw = document.getElementById("signup-id")?.value ?? "";
+    const courseRaw    = document.getElementById("signup-course")?.value ?? "";
+    const yearRaw      = document.getElementById("signup-year")?.value ?? "";
+    const sectionRaw   = document.getElementById("signup-section")?.value ?? "";
 
-    // quick validation
-    let ok = true;
-    const req = (el, msg) => { if (!el?.value?.trim()) { showError(el, msg); ok = false; } };
-    req(document.getElementById("signup-name"));
-    req(document.getElementById("signup-email"));
-    req(document.getElementById("signup-password"));
-    req(document.getElementById("signup-confirm-password"));
-    req(document.getElementById("signup-id"));
-    req(document.getElementById("signup-course"));
-    req(document.getElementById("signup-year"));
-    req(document.getElementById("signup-section"));
-    if (email && !validateEmailFormat(email)) { showError(document.getElementById("signup-email"), "Enter a valid email"); ok = false; }
-    if (pass && pass.length < 8) { showError(document.getElementById("signup-password"), "Use at least 8 characters"); ok = false; }
-    if (pass && pass2 && pass !== pass2) { showError(document.getElementById("signup-confirm-password"), "Passwords do not match"); ok = false; }
-    if (!ok) return;
-
-    const year = yearKey(yearLabel); // store canonical "1".."5"
+    const name      = nameRaw.trim();
+    const email     = emailRaw.trim();
+    const studentId = studentIdRaw.trim();
+    const course    = courseRaw.trim().toUpperCase();   // e.g. BSIT
+    const year      = String(yearRaw).trim();           // keep as string for UI dropdown
+    const section   = sectionRaw.trim().toUpperCase();  // e.g. A/B/C
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
       if (name) await updateProfile(cred.user, { displayName: name });
 
+      // Write full profile immediately so the Student Profile page has data on first login
       await setDoc(doc(db, "users", cred.user.uid), {
         uid: cred.user.uid,
         role: "student",
+
+        // Identity
         name,
         email,
-        studentId,            // <-- exact key used by admin.js
-        course,
-        year,                 // <-- normalized number-like string
-        section,
+
+        // Student profile fields (two keys for compatibility with readers)
+        studentId,
+        studentIdNumber: studentId,
+
+        // Academic info
+        course,     // "BSIT"
+        year,       // "1" | "2" | ...
+        section,    // "A" | "B" | ...
+
+        // Helpful extras
+        searchName: name.toLowerCase(),
         createdAt: serverTimestamp(),
       }, { merge: true });
 
-      // let them log in fresh
-      await signOut(auth).catch(()=>{});
+      // Sign out to return to login
+      sessionStorage.setItem("stayOnAuthOnce", "1");
+      await signOut(auth).catch(() => {});
       window.location.href = "auth.html#student?after=signup";
     } catch (err) {
       console.error("[auth.js] signup error:", err?.code, err?.message);
@@ -139,15 +180,26 @@ if (signupForm) {
   });
 }
 
-/* ================================ LOGIN ================================ */
+/* ================================
+   LOGIN
+   ================================ */
 const loginForm = document.getElementById("login-form");
+
 if (loginForm) {
   loginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const email = document.getElementById("login-email")?.value.trim() || "";
     const pass  = document.getElementById("login-password")?.value || "";
+
+    const remember = document.getElementById("remember-me");
+    if (remember?.checked) {
+      try { await setPersistence(auth, browserLocalPersistence); } 
+      catch (err) { console.warn("[auth.js] setPersistence failed:", err?.message || err); }
+    }
+
     try {
       const cred = await signInWithEmailAndPassword(auth, email, pass);
+      sessionStorage.removeItem("stayOnAuthOnce");
       await goToDashboard(cred.user);
     } catch (err) {
       console.error("[auth.js] login error:", err?.code, err?.message);
@@ -156,11 +208,21 @@ if (loginForm) {
   });
 }
 
-/* ================================ Auto-redirect (auth page only) ================================ */
+/* ================================
+   Auto-redirect if already logged in (only on auth/index)
+   ================================ */
 onAuthStateChanged(auth, async (user) => {
   const path = location.pathname.toLowerCase();
   const isAuthPage = path.endsWith("auth.html") || path.endsWith("/") || path.endsWith("index.html");
   if (!isAuthPage || !user) return;
+
+  const stayOnce = sessionStorage.getItem("stayOnAuthOnce") === "1";
+  const urlHasAfterSignup = (new URLSearchParams(location.search)).get("after") === "signup";
+  if (stayOnce || urlHasAfterSignup) {
+    try { await signOut(auth); } catch {}
+    sessionStorage.removeItem("stayOnAuthOnce");
+    return; // stay on login tab
+  }
 
   try { await goToDashboard(user); } catch {}
 });

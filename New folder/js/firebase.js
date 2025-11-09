@@ -21,3 +21,4 @@ try {
   // ignore on localhost
 }
 
+export { app, auth, db };

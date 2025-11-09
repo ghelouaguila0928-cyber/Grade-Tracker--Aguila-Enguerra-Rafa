@@ -8,13 +8,13 @@
   <!-- Your global tokens / buttons / container styles -->
   <link rel="stylesheet" href="css/style.css" />
 
-  <!-- Auth page stylesheet (green theme + overflow fixes) -->
+  <!-- Auth page stylesheet (theme + layout) -->
   <link rel="stylesheet" href="css/auth.css" />
 
   <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
-  <!-- Minimal helper to ensure 3-column layout works even without editing external CSS -->
+  <!-- Minimal helper for 3-column responsive layout -->
   <style>
     .form-row.three-col {
       display: grid;
@@ -23,6 +23,8 @@
     }
     @media (max-width: 900px) { .form-row.three-col { grid-template-columns: 1fr 1fr; } }
     @media (max-width: 600px) { .form-row.three-col { grid-template-columns: 1fr; } }
+    .field-error { color: #b91c1c; font-size: .85rem; margin-top: .35rem; }
+    .is-invalid { border-color: #ef4444 !important; }
   </style>
 </head>
 <body class="auth-page">
@@ -114,7 +116,7 @@
               <input type="email" id="signup-email" class="form-control" required />
             </div>
 
-            <!-- Course, Year & Section (Section is a dropdown) -->
+            <!-- Course, Year & Section -->
             <fieldset class="form-group" aria-labelledby="course-year-legend">
               <legend id="course-year-legend" class="form-legend">Course, Year &amp; Section</legend>
               <div class="form-row three-col">
@@ -204,7 +206,7 @@
     </div>
   </div>
 
-  <!-- Your Firebase + auth handlers -->
+  <!-- Firebase + auth handlers -->
   <script type="module" src="js/firebase.js"></script>
   <script type="module" src="js/auth.js"></script>
 
@@ -252,7 +254,7 @@
     const hash = (location.hash || '#student').replace('#','');
     setActiveRole(hash === 'admin' ? 'admin' : 'student');
 
-    // Switchers between login and signup panels inside a role
+    // Switchers between login and signup panels
     document.querySelectorAll('[data-switch]')?.forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();
