@@ -483,7 +483,7 @@ input:checked + .slider:before { transform: translateX(26px); }
 
 .chat-panel { display: flex; flex-direction: column; gap: 12px; }
 .chat-recipient-row { display: flex; gap: 8px; }
-.chat-thread { height: 420px; overflow: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
+.chat-thread { height: 650px; overflow: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; }
 .thread { display: flex; flex-direction: column; gap: 8px; }
 .bubble { max-width: 70%; padding: 10px 12px; border-radius: 14px; }
 .bubble.me { align-self: flex-end; background: #dbeafe; }
