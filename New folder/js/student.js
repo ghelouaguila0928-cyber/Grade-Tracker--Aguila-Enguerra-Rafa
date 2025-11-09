@@ -55,7 +55,7 @@ const totalUnitsEl = document.getElementById("totalUnits");
 const gwaEl = document.getElementById("gwa");
 const summaryMeta = document.getElementById("summaryMeta");
 
-// Chat (Student ↔ Admin, shared with admin portal)
+// Chat (Student ↔ Admin)
 const chatThread = document.getElementById("chatThread");
 const chatForm = document.getElementById("chatForm");
 const chatInput = document.getElementById("chatInput");
@@ -138,7 +138,6 @@ function normalizeGrade(rec) {
   };
 }
 
-// Pull grades only from canonical place: users/{uid}/grades
 async function fetchGradesForTerm(user, yearLevel, sem) {
   const q = query(
     collection(db, "users", user.uid, "grades"),
@@ -260,7 +259,6 @@ function renderChat(messages, currentUid) {
   chatThread.scrollTop = chatThread.scrollHeight;
 }
 
-// Ensure a thread doc exists at threads/{studentUid}
 async function ensureThreadDoc(user, subjectText = "Conversation with Admin") {
   const tRef = doc(db, "threads", user.uid);
   const tSnap = await getDoc(tRef);
@@ -306,34 +304,37 @@ async function sendMessageToAdmin(user, text) {
     lastMessage: { subject: "Message", text, sender: user.uid },
     lastSender: user.uid,
     updatedAt: serverTimestamp(),
-    unread: true, // so admin sees it as new
+    unread: true, // admin sees as new
   }, { merge: true });
 }
 
-/* -------------------- Profile Hydrate (+ optional backfill) -------------------- */
+/* -------------------- SAFE Profile Backfill (no blank overwrites) -------------------- */
 async function backfillEmptyProfile(user, data) {
-  const missing =
-    !data ||
-    (!data.studentId && !data.studentIdNumber) ||
-    !data.course ||
-    !data.year ||
-    !data.section;
+  const patch = {};
+  const has = (x) => x !== undefined && x !== null && String(x).trim() !== "";
 
-  if (!missing) return null;
-
-  const patch = {
-    uid: user.uid,
-    role: (data?.role || "student"),
-    name: data?.name || user.displayName || "Student",
-    email: data?.email || user.email || "",
-    studentId: data?.studentId ?? data?.studentIdNumber ?? "",
-    studentIdNumber: data?.studentIdNumber ?? data?.studentId ?? "",
-    course: data?.course ?? "",
-    year: data?.year ? String(data.year) : "",
-    section: data?.section ?? "",
+  const ensure = (key, val) => {
+    if (!has(data?.[key]) && has(val)) patch[key] = String(val).trim();
   };
+
+  ensure("uid", user?.uid);
+  ensure("role", data?.role || "student");
+
+  ensure("name", data?.name || user?.displayName);
+  ensure("email", data?.email || user?.email);
+
+  ensure("studentId", data?.studentId ?? data?.studentIdNumber);
+  ensure("studentIdNumber", data?.studentIdNumber ?? data?.studentId);
+
+  ensure("course", data?.course);
+  ensure("year", data?.year ? String(data.year) : "");
+  ensure("section", data?.section);
+
+  if (!Object.keys(patch).length) return null;
+
   try {
     await setDoc(doc(db, "users", user.uid), patch, { merge: true });
+    console.log("[student.js] safe backfill wrote:", patch);
     return patch;
   } catch (e) {
     console.warn("[student.js] backfill failed:", e);
@@ -341,6 +342,7 @@ async function backfillEmptyProfile(user, data) {
   }
 }
 
+/* -------------------- Apply Profile to UI -------------------- */
 function applyProfileToUI(data, user) {
   const name = coerceStr(data?.name || user?.displayName || "Student").trim();
   const email = coerceStr(user?.email || data?.email || "—").trim();
@@ -350,13 +352,12 @@ function applyProfileToUI(data, user) {
   ).trim();
 
   const course = coerceStr(data?.course ?? data?.program ?? "—").trim();
-
   const rawYear = coerceStr(data?.year ?? data?.yearLevel ?? "").trim();
   const year = rawYear ? String(rawYear) : "";
-
   const section = coerceStr(data?.section ?? data?.classSection ?? "—").trim();
 
-  // Sidebar/Profile header
+  console.log("[student.js] applyProfileToUI:", { studentId, course, year, section });
+
   sidebarName && (sidebarName.textContent = name || "Student");
   sidebarRole && (sidebarRole.textContent = `ID: ${studentId || "—"}`);
 
@@ -364,7 +365,6 @@ function applyProfileToUI(data, user) {
   profileStudentId && (profileStudentId.textContent = `Student ID: ${studentId || "—"}`);
   setInitials([document.getElementById("sidebarAvatar"), profileInitials], name || "Student");
 
-  // Profile table values
   p_name && (p_name.textContent = name || "—");
   p_email && (p_email.textContent = email || "—");
   p_studentId && (p_studentId.textContent = studentId || "—");
@@ -372,7 +372,6 @@ function applyProfileToUI(data, user) {
   p_year && (p_year.textContent = year || "—");
   p_section && (p_section.textContent = section || "—");
 
-  // Preselect Year Level filter (expects "1".."5")
   if (selectYearLevel && year && ["1","2","3","4","5"].includes(year)) {
     selectYearLevel.value = year;
   }
@@ -394,34 +393,32 @@ onAuthStateChanged(auth, async (user) => {
   generateSummaryBtn?.addEventListener("click", async () => { await handleGenerate(user); });
 
   try {
-    // Load profile document
     const ref = doc(db, "users", user.uid);
     let snap = await getDoc(ref);
     let data = snap.exists() ? snap.data() : null;
+    console.log("[student.js] loaded users doc:", data);
 
-    // Backfill (for old accounts missing fields)
+    // Safe backfill (won't overwrite with blanks)
     const patched = await backfillEmptyProfile(user, data);
     if (patched) {
       snap = await getDoc(ref);
       data = snap.exists() ? snap.data() : null;
+      console.log("[student.js] reloaded after backfill:", data);
     }
 
-    // Hydrate UI
     applyProfileToUI(data, user);
 
-    // Ensure thread exists & bind realtime listener
+    // Chat
     await ensureThreadDoc(user);
     bindRealtimeThread(user);
 
-    // Hook the send form (once)
+    // Send handler (once)
     chatForm?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const me = auth.currentUser;
       const text = (chatInput?.value || "").trim();
-
       if (!me) return showToast("You are not signed in.", "error");
       if (!text) return;
-
       try {
         await sendMessageToAdmin(me, text);
         chatInput.value = "";
@@ -433,13 +430,7 @@ onAuthStateChanged(auth, async (user) => {
 
   } catch (err) {
     console.error("student auth guard:", err);
-    // Fallback to auth object so UI isn't blank
     applyProfileToUI(null, user);
-
-    // Try to still set up chat
-    try {
-      await ensureThreadDoc(user);
-      bindRealtimeThread(user);
-    } catch {}
+    try { await ensureThreadDoc(user); bindRealtimeThread(user); } catch {}
   }
 });

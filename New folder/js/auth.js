@@ -118,6 +118,22 @@ document.querySelectorAll("#signup-form .form-control").forEach((el) => {
   el.addEventListener("change", () => el.classList.contains("is-invalid") && clearError(el));
 });
 
+async function writeProfileOrThrow(uid, payload) {
+  await setDoc(doc(db, "users", uid), payload, { merge: true });
+  // verify it really exists with correct fields
+  const check = await getDoc(doc(db, "users", uid));
+  if (!check.exists()) throw new Error("Profile doc missing after write.");
+  const d = check.data() || {};
+  const must = ["studentId","course","year","section"];
+  const missing = must.filter(k => !d[k] || String(d[k]).trim()==="");
+  if (missing.length) {
+    throw new Error("Missing fields after write: " + missing.join(", "));
+  }
+  console.log("[auth.js] verified profile:", {
+    uid, studentId: d.studentId, course: d.course, year: d.year, section: d.section
+  });
+}
+
 if (signupForm) {
   signupForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -127,55 +143,40 @@ if (signupForm) {
     }
 
     // Collect + normalize
-    const nameRaw      = document.getElementById("signup-name")?.value ?? "";
-    const emailRaw     = document.getElementById("signup-email")?.value ?? "";
-    const pass         = document.getElementById("signup-password")?.value ?? "";
-    const studentIdRaw = document.getElementById("signup-id")?.value ?? "";
-    const courseRaw    = document.getElementById("signup-course")?.value ?? "";
-    const yearRaw      = document.getElementById("signup-year")?.value ?? "";
-    const sectionRaw   = document.getElementById("signup-section")?.value ?? "";
-
-    const name      = nameRaw.trim();
-    const email     = emailRaw.trim();
-    const studentId = studentIdRaw.trim();
-    const course    = courseRaw.trim().toUpperCase();   // e.g. BSIT
-    const year      = String(yearRaw).trim();           // keep as string for UI dropdown
-    const section   = sectionRaw.trim().toUpperCase();  // e.g. A/B/C
+    const name      = (document.getElementById("signup-name")?.value ?? "").trim();
+    const email     = (document.getElementById("signup-email")?.value ?? "").trim();
+    const pass      = (document.getElementById("signup-password")?.value ?? "");
+    const studentId = (document.getElementById("signup-id")?.value ?? "").trim();
+    const course    = (document.getElementById("signup-course")?.value ?? "").trim().toUpperCase();
+    const year      = String(document.getElementById("signup-year")?.value ?? "").trim(); // "1".."5"
+    const section   = (document.getElementById("signup-section")?.value ?? "").trim().toUpperCase();
 
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, pass);
       if (name) await updateProfile(cred.user, { displayName: name });
 
-      // Write full profile immediately so the Student Profile page has data on first login
-      await setDoc(doc(db, "users", cred.user.uid), {
+      const payload = {
         uid: cred.user.uid,
         role: "student",
-
-        // Identity
-        name,
-        email,
-
-        // Student profile fields (two keys for compatibility with readers)
+        name, email,
         studentId,
         studentIdNumber: studentId,
-
-        // Academic info
-        course,     // "BSIT"
-        year,       // "1" | "2" | ...
-        section,    // "A" | "B" | ...
-
-        // Helpful extras
+        course,
+        year,        // keep string to match UI dropdown
+        section,
         searchName: name.toLowerCase(),
         createdAt: serverTimestamp(),
-      }, { merge: true });
+      };
 
-      // Sign out to return to login
+      await writeProfileOrThrow(cred.user.uid, payload);
+
+      // sign out to return to login
       sessionStorage.setItem("stayOnAuthOnce", "1");
       await signOut(auth).catch(() => {});
       window.location.href = "auth.html#student?after=signup";
     } catch (err) {
-      console.error("[auth.js] signup error:", err?.code, err?.message);
-      alert(err?.message || "Sign up failed. Please try again.");
+      console.error("[auth.js] signup error:", err?.code, err?.message, err);
+      alert(err?.message || "Sign up failed. Please check Firestore Rules and try again.");
     }
   });
 }
