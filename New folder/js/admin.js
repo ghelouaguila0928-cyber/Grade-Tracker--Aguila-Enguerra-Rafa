@@ -37,6 +37,43 @@ import {
         location.href = "auth.html";
       } finally { resolve(); }
     });
+    const fileUploadInput = document.getElementById("fileUploadInput");
+const uploadFileBtn = document.getElementById("uploadFileBtn");
+const uploadedFilesList = document.getElementById("uploadedFilesList");
+
+uploadFileBtn?.addEventListener("click", async () => {
+  if (!CURRENT_STUDENT || !fileUploadInput.files.length) {
+    alert("Select a file and open a student first.");
+    return;
+  }
+
+  const file = fileUploadInput.files[0];
+  const fileRef = storageRef(storage, `student_files/${CURRENT_STUDENT.uid}/${file.name}`);
+
+  try {
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+    alert("File uploaded successfully!");
+
+    // Add to UI
+    const li = document.createElement("li");
+    li.innerHTML = `<a href="${url}" target="_blank">${file.name}</a> <button data-name="${file.name}">Delete</button>`;
+    uploadedFilesList.appendChild(li);
+
+    li.querySelector("button")?.addEventListener("click", async (e) => {
+      const name = e.target.dataset.name;
+      const delRef = storageRef(storage, `student_files/${CURRENT_STUDENT.uid}/${name}`);
+      await deleteObject(delRef);
+      li.remove();
+      alert("File deleted.");
+    });
+
+  } catch (err) {
+    console.error("Upload failed:", err);
+    alert("Failed to upload file.");
+  }
+});
+
   });
 })();
 
