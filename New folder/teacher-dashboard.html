@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard — Grade Viewer</title>
+  <link rel="stylesheet" href="css/teacher.css" />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar" aria-label="Sidebar">
+      <div class="brand">
+        <h1><span>Grade Viewer</span></h1>
+        <div class="subtitle">Teacher Portal</div>
+      </div>
+
+      <nav class="nav" aria-label="Main">
+        <a
+          href="#"
+          class="nav-item active"
+          data-page="sections"
+          ><i class="fas fa-layer-group"></i><span>My Sections</span></a
+        >
+        <a href="#" class="nav-item" data-page="students"
+          ><i class="fas fa-users"></i><span>All My Students</span></a
+        >
+        <a href="#" class="nav-item" data-page="messages"
+          ><i class="fas fa-comments"></i><span>Messages</span></a
+        >
+        <div class="nav-divider" role="separator"></div>
+        <a href="#" class="nav-item" data-page="profile"
+          ><i class="fas fa-user"></i><span>Profile</span></a
+        >
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="sidebarAvatar">TC</div>
+          <div class="user-details">
+            <div class="user-name" id="sidebarName">Teacher</div>
+            <div class="user-role" id="sidebarRole">—</div>
+          </div>
+        </div>
+        <button class="logout-btn" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i><span>Log Out</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="main-content">
+      <header class="header">
+        <div class="header-title" id="pageTitle">My Sections</div>
+        <div class="header-actions">
+          <!-- NOTIF (with badge + dropdown) -->
+          <div class="notif-wrap">
+            <button
+              class="header-action-btn"
+              id="openNotifs"
+              title="Notifications"
+              aria-expanded="false"
+              aria-haspopup="true"
+            >
+              <i class="fas fa-bell"></i>
+              <span id="notifBadge" class="notif-badge" hidden>0</span>
+            </button>
+
+            <div id="notifMenu" class="notif-menu" hidden>
+              <div class="notif-menu-head">Notifications</div>
+              <div id="notifList" class="notif-list">
+                <div class="muted" id="notifEmpty">
+                  No new notifications.
+                </div>
+              </div>
+              <div class="notif-menu-foot">
+                <button
+                  id="notifViewAll"
+                  class="btn btn-secondary btn-xs"
+                >
+                  Open Messages
+                </button>
+                <button id="notifMarkRead" class="btn btn-primary btn-xs">
+                  Mark all as read
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggle -->
+          <button
+            class="header-action-btn"
+            id="toggleSidebar"
+            title="Toggle Sidebar"
+            aria-controls="sidebar"
+          >
+            <i class="fas fa-bars"></i>
+          </button>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- SECTIONS -->
+        <section
+          id="sections"
+          class="page active"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">My Sections</div>
+              <div class="section-actions">
+                <span class="muted"
+                  >* Sections are assigned by Admin</span
+                >
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Course</th>
+                    <th>Section</th>
+                    <th>Year</th>
+                    <th>Students</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="sectionsTableBody">
+                  <tr>
+                    <td colspan="5">Loading…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION DETAIL -->
+        <section
+          id="section-detail"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="crumbs">
+              <a href="#" id="backToSectionsLink"
+                >&larr; Back to My Sections</a
+              >
+            </div>
+            <div class="section-header">
+              <div class="section-title">
+                Section: <span id="sdTitle">—</span>
+              </div>
+              <div class="section-actions">
+                <button
+                  class="btn btn-secondary btn-sm"
+                  id="exportSectionMembersBtn"
+                >
+                  <i class="fas fa-download"></i> Export
+                </button>
+              </div>
+            </div>
+            <div class="muted">
+              <b>Course:</b> <span id="sdCourse">—</span>
+              &nbsp;•&nbsp;
+              <b>Section:</b> <span id="sdSection">—</span>
+              &nbsp;•&nbsp;
+              <b>Year:</b> <span id="sdYear">—</span>
+            </div>
+            <div class="table-container" style="margin-top: 12px">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Year Level</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="sectionMembersBody">
+                  <tr>
+                    <td colspan="5">No members yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- STUDENTS -->
+        <section
+          id="students"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">All My Students</div>
+              <div class="section-actions">
+                <div
+                  class="form-group"
+                  style="min-width: 260px"
+                >
+                  <label for="studentsSearch">Search</label>
+                  <input
+                    id="studentsSearch"
+                    class="form-control"
+                    placeholder="Search by name, ID, or email"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Year</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsTableBody">
+                  <tr>
+                    <td colspan="5">Loading…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- STUDENT DETAIL (with tabs: Grades / Subjects Taken) -->
+        <section
+          id="student-detail"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="crumbs">
+              <a href="#" id="backToStudentsLink">&larr; Back</a>
+            </div>
+            <div class="section-header">
+              <div class="section-title">
+                Student:
+                <span id="stName" class="nowrap">—</span>
+                <span class="muted">
+                  (<span id="stId">—</span>)
+                </span>
+              </div>
+              <div class="section-actions">
+                <button
+                  class="btn btn-secondary btn-sm"
+                  id="exportSoGBtn"
+                >
+                  <i class="fas fa-download"></i> Export Grades
+                </button>
+                <button
+                  class="btn btn-primary btn-sm"
+                  id="addSoGBtn"
+                >
+                  <i class="fas fa-plus"></i> Add Grade
+                </button>
+              </div>
+            </div>
+
+            <!-- TABS -->
+            <div class="tabs student-tabs">
+              <button
+                class="tab student-tab active"
+                type="button"
+                data-tab="grades"
+              >
+                Grades
+              </button>
+              <button
+                class="tab student-tab"
+                type="button"
+                data-tab="subjects"
+              >
+                Subjects Taken
+              </button>
+            </div>
+
+            <!-- GRADES TAB PANEL -->
+            <div
+              id="tabGrades"
+              class="student-tab-panel active"
+              data-tab="grades"
+            >
+              <div class="filters">
+                <div class="form-group">
+                  <label for="filterYear">Year</label>
+                  <select
+                    id="filterYear"
+                    class="form-control"
+                  >
+                    <option value="__ALL__">
+                      Show All Years
+                    </option>
+                    <option>1st Year</option>
+                    <option>2nd Year</option>
+                    <option>3rd Year</option>
+                    <option>4th Year</option>
+                    <option>5th Year</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="filterSem">Semester</label>
+                  <select
+                    id="filterSem"
+                    class="form-control"
+                  >
+                    <option value="__ALL__">
+                      Show All Semesters
+                    </option>
+                    <option>1st Sem</option>
+                    <option>2nd Sem</option>
+                    <option>Summer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div
+                id="semAvgBar"
+                class="muted"
+                style="margin: 6px 0 10px 0"
+              ></div>
+
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Year</th>
+                      <th>Semester</th>
+                      <th>Course Name</th>
+                      <th>Course Code</th>
+                      <th>Units</th>
+                      <th>Mark</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sogTableBody">
+                    <tr>
+                      <td colspan="6">No grades yet.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- SUBJECTS TAKEN TAB PANEL -->
+            <div
+              id="tabSubjects"
+              class="student-tab-panel"
+              data-tab="subjects"
+            >
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Year</th>
+                      <th>Semester</th>
+                      <th>Subject Name</th>
+                      <th>Subject Code</th>
+                      <th>Units</th>
+                      <th>Status / Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stSubjectsBody">
+                    <tr>
+                      <td colspan="6">
+                        No subjects taken yet.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- MESSAGES (full page) -->
+        <section
+          id="messages"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Messages</div>
+              <div class="section-actions">
+                <span class="muted"
+                  >Direct messages between Teacher and
+                  Student</span
+                >
+              </div>
+            </div>
+
+            <div class="messages-wrap">
+              <!-- Threads -->
+              <div class="thread-list" id="threadList">
+                <div class="muted" id="threadEmpty">
+                  No conversations yet.
+                </div>
+              </div>
+
+              <!-- Conversation -->
+              <div class="chat-panel">
+                <div class="chat-header">
+                  <div class="chat-title" id="chatTitle">
+                    No thread selected
+                  </div>
+                </div>
+                <div class="chat-body" id="chatBody"></div>
+                <div class="chat-footer">
+                  <input
+                    id="chatInput"
+                    class="chat-input"
+                    placeholder="Type a message…"
+                  />
+                  <button
+                    id="chatSend"
+                    class="btn btn-primary chat-send"
+                  >
+                    <i class="fas fa-paper-plane"></i> Send
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROFILE -->
+        <section
+          id="profile"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Profile</div>
+            </div>
+            <div class="profile-header">
+              <div class="avatar-large" id="profileInitials">
+                TC
+              </div>
+              <div class="profile-info">
+                <h3 id="profileName">Teacher</h3>
+                <p class="profile-meta" id="profileEmail">
+                  —
+                </p>
+              </div>
+            </div>
+            <div class="table-container">
+              <table>
+                <tbody>
+                  <tr>
+                    <th style="width: 220px">Full Name</th>
+                    <td id="p_name">—</td>
+                  </tr>
+                  <tr>
+                    <th>Email</th>
+                    <td id="p_email">—</td>
+                  </tr>
+                  <tr>
+                    <th>UID</th>
+                    <td id="p_uid">—</td>
+                  </tr>
+                  <tr>
+                    <th>Assigned Sections</th>
+                    <td id="p_sections">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="muted" style="margin-top: 8px">
+              Sections are assigned by Admin. Contact Admin for
+              changes.
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- Add Grade Modal -->
+  <div
+    class="modal"
+    id="addSoGModal"
+    aria-hidden="true"
+    role="dialog"
+  >
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title">
+          Add Grade for <span id="amgStudentName">Student</span>
+        </div>
+        <button
+          class="close-modal"
+          id="amgClose"
+          aria-label="Close"
+        >
+          &times;
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addSoGForm">
+          <!-- Subject dropdown (from Subjects Taken) -->
+          <div class="form-group">
+            <label for="sogSubject">Subject (from Subjects Taken)</label>
+            <select id="sogSubject" class="form-control" required>
+              <option value="">Select Subject</option>
+            </select>
+            <small class="muted">
+              List is based on the student's Subjects Taken records.
+            </small>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sogYear">Year</label>
+              <!-- display only, auto-filled from selected subject -->
+              <select
+                id="sogYear"
+                class="form-control"
+                disabled
+              >
+                <option value="">Auto from subject</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="sogSem">Semester</label>
+              <!-- display only, auto-filled -->
+              <select
+                id="sogSem"
+                class="form-control"
+                disabled
+              >
+                <option value="">Auto from subject</option>
+                <option>1st Sem</option>
+                <option>2nd Sem</option>
+                <option>Summer</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sogCourseName">Course Name</label>
+              <input
+                id="sogCourseName"
+                class="form-control"
+                placeholder="e.g. Calculus 1"
+                readonly
+              />
+            </div>
+            <div class="form-group">
+              <label for="sogCourseCode">Course Code</label>
+              <input
+                id="sogCourseCode"
+                class="form-control"
+                placeholder="e.g. MATH101"
+                readonly
+              />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="sogUnits">Units</label>
+              <input
+                id="sogUnits"
+                type="number"
+                min="0"
+                step="0.5"
+                class="form-control"
+                placeholder="e.g. 3"
+                readonly
+              />
+            </div>
+            <div class="form-group">
+              <label for="sogMark">Mark</label>
+              <input
+                id="sogMark"
+                class="form-control"
+                placeholder="e.g. 92 or A"
+                required
+              />
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button
+          class="btn btn-secondary"
+          type="button"
+          id="amgCancel"
+        >
+          Cancel
+        </button>
+        <button
+          class="btn btn-primary"
+          type="submit"
+          form="addSoGForm"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/firebase.js"></script>
+  <script type="module" src="js/teacher.js"></script>
+</body>
+</html>

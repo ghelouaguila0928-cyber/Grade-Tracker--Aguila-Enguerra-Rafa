@@ -1,30 +1,12 @@
-<!-- index.html -->
+<!-- admin.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin Portal — Grade Viewer</title>
-  <link rel="stylesheet" href="css/admin.css" />
+  <link rel="stylesheet" href="css/admin.css"/>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
-  <style>
-    /* tiny helpers to match admin.js behavior */
-    .notification-badge{display:none;min-width:18px;height:18px;border-radius:9px;background:#e11d48;color:#fff;font-size:11px;line-height:18px;text-align:center;margin-left:6px;padding:0 5px}
-    .header-actions{display:flex;gap:8px;align-items:center}
-    .btn-xxs{font-size:11px;padding:2px 6px;line-height:1;border-radius:6px}
-    .form-control{min-height:34px}
-    .nowrap{white-space:nowrap}
-    .muted{color:#6b7280}
-
-    /* Mobile/off-canvas sidebar behavior */
-    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:40}
-    .sidebar-overlay.show{display:block}
-    .sidebar{transition:transform .25s ease;will-change:transform}
-    @media (max-width:1024px){
-      .sidebar{transform:translateX(-100%)}
-      body.sidebar-open .sidebar{transform:translateX(0)}
-    }
-  </style>
 </head>
 <body>
   <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
@@ -37,12 +19,15 @@
         <div class="subtitle">Admin Portal</div>
       </div>
 
-      <nav class="nav" aria-label="Main"> 
+      <nav class="nav" aria-label="Main">
         <a href="#" class="nav-item active" data-page="students">
           <i class="fas fa-users"></i><span>Students</span>
         </a>
         <a href="#" class="nav-item" data-page="sections">
           <i class="fas fa-layer-group"></i><span>Sections</span>
+        </a>
+        <a href="#" class="nav-item" data-page="teachers">
+          <i class="fas fa-chalkboard-teacher"></i><span>Teachers</span>
         </a>
         <a href="#" class="nav-item" data-page="messages">
           <i class="fas fa-comments"></i><span>Messages</span>
@@ -69,10 +54,24 @@
       <header class="header">
         <div class="header-title" id="pageTitle">Student Management</div>
         <div class="header-actions">
-          <button class="header-action-btn" title="Notifications" id="notifBtn" aria-label="Notifications">
-            <i class="fas fa-bell"></i>
-            <span class="notification-badge" id="notifCount" aria-live="polite">0</span>
-          </button>
+          <!-- NOTIFICATION (badge + dropdown) -->
+          <div class="notif-wrap">
+            <button class="header-action-btn" id="openNotifs" title="Notifications" aria-expanded="false" aria-haspopup="true">
+              <i class="fas fa-bell"></i>
+              <span id="notifBadge" class="notification-badge" hidden>0</span>
+            </button>
+            <div id="notifMenu" class="notif-menu" hidden>
+              <div class="notif-menu-head">Notifications</div>
+              <div id="notifList" class="notif-list">
+                <div class="muted" id="notifEmpty">No new notifications.</div>
+              </div>
+              <div class="notif-menu-foot">
+                <button id="notifViewAll" class="btn btn-secondary btn-xs">Open Messages</button>
+                <button id="notifMarkRead" class="btn btn-primary btn-xs">Mark all as read</button>
+              </div>
+            </div>
+          </div>
+
           <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar" aria-label="Toggle Sidebar" aria-controls="sidebar">
             <i class="fas fa-bars"></i>
           </button>
@@ -85,30 +84,20 @@
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Student Management</div>
-              <div class="section-actions">
-                <button class="btn btn-secondary btn-sm" id="exportStudentsBtn"><i class="fas fa-download"></i> Export</button>
-              </div>
             </div>
 
-            <!-- Students filters -->
             <div class="filters">
               <div class="form-group">
                 <label for="studentsFilterYear">Year</label>
                 <select id="studentsFilterYear" class="form-control">
                   <option value="__ALL__">Show All Years</option>
-                  <option>1st Year</option>
-                  <option>2nd Year</option>
-                  <option>3rd Year</option>
-                  <option>4th Year</option>
-                  <option>5th Year</option>
+                  <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>5th Year</option>
                 </select>
               </div>
-
               <div class="form-group" style="min-width:240px;">
                 <label for="studentsSearch">Search student</label>
                 <input id="studentsSearch" class="form-control" placeholder="Search by name, ID, or email"/>
               </div>
-
               <div class="form-group">
                 <label for="studentsSort">Sort</label>
                 <select id="studentsSort" class="form-control">
@@ -123,13 +112,7 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Student ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Year Level</th>
-                    <th>Average Grade</th>
-                    <th>Status</th>
-                    <th>Actions</th>
+                    <th>Student ID</th><th>Name</th><th>Email</th><th>Year Level</th><th>Average Grade</th><th>Status</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="studentsTableBody">
@@ -140,62 +123,120 @@
           </div>
         </section>
 
-        <!-- STUDENT DETAIL + SUMMARY OF GRADES -->
+        <!-- STUDENT DETAIL (with tabs) -->
         <section id="student-detail" class="page" aria-labelledby="pageTitle">
           <div class="content-section">
-            <div class="crumbs"><a href="#" id="backToStudentsLink">&larr; Back to Students</a></div>
+            <div class="crumbs">
+              <a href="#" id="backToStudentsLink">&larr; Back to Students</a>
+            </div>
+
             <div class="section-header">
               <div class="section-title">
-                Student: <span id="stName" class="nowrap">—</span> <span class="muted">(<span id="stId">—</span>)</span>
+                Student: <span id="stName" class="nowrap">—</span>
+                <span class="muted">(<span id="stId">—</span>)</span>
               </div>
               <div class="section-actions">
-                <button class="btn btn-primary btn-sm" id="addSoGBtn"><i class="fas fa-plus"></i> Add Summary Entry</button>
-                <button class="btn btn-secondary btn-sm" id="exportSoGBtn"><i class="fas fa-download"></i> Export</button>
+                <button class="btn btn-secondary btn-sm" id="exportSoGBtn">
+                  <i class="fas fa-download"></i> Export Grades
+                </button>
               </div>
             </div>
 
-            <div class="filters">
-              <div class="form-group">
-                <label for="filterYear">Year</label>
-                <select id="filterYear" class="form-control">
-                  <option value="__ALL__">Show All Years</option>
-                  <option>1st Year</option>
-                  <option>2nd Year</option>
-                  <option>3rd Year</option>
-                  <option>4th Year</option>
-                  <option>5th Year</option>
-                </select>
+            <!-- Tabs -->
+            <div class="tabs-row">
+              <button class="tab-btn active" type="button" data-st-tab="grades">Grades</button>
+              <button class="tab-btn" type="button" data-st-tab="subjects">Subjects Taken</button>
+            </div>
+
+            <!-- TAB: GRADES -->
+            <div id="studentTabGrades" class="st-tab-panel">
+              <div class="filters">
+                <div class="form-group">
+                  <label for="filterYear">Year</label>
+                  <select id="filterYear" class="form-control">
+                    <option value="__ALL__">Show All Years</option>
+                    <option>1st Year</option>
+                    <option>2nd Year</option>
+                    <option>3rd Year</option>
+                    <option>4th Year</option>
+                    <option>5th Year</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="filterSem">Semester</label>
+                  <select id="filterSem" class="form-control">
+                    <option value="__ALL__">Show All Semesters</option>
+                    <option>1st Sem</option>
+                    <option>2nd Sem</option>
+                    <option>Summer</option>
+                  </select>
+                </div>
               </div>
-              <div class="form-group">
-                <label for="filterSem">Semester</label>
-                <select id="filterSem" class="form-control">
-                  <option value="__ALL__">Show All Semesters</option>
-                  <option>1st Sem</option>
-                  <option>2nd Sem</option>
-                  <option>Summer</option>
-                </select>
+
+              <div id="semAvgBar" class="muted" style="margin:6px 0 10px 0;"></div>
+
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Year</th>
+                      <th>Semester</th>
+                      <th>Course Name</th>
+                      <th>Course Code</th>
+                      <th>Units</th>
+                      <th>Mark</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sogTableBody">
+                    <tr><td colspan="6">No grades yet.</td></tr>
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            <div id="semAvgBar" class="muted" style="margin:6px 0 10px 0;"></div>
+            <!-- TAB: SUBJECTS TAKEN -->
+            <div id="studentTabSubjects" class="st-tab-panel" style="display:none;">
+              <div class="filters">
+                <div class="form-group">
+                  <label for="stSubjectsYear">Year</label>
+                  <select id="stSubjectsYear" class="form-control">
+                    <option value="__ALL__">Show All Years</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                    <option value="5">5th Year</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="stSubjectsSem">Semester</label>
+                  <select id="stSubjectsSem" class="form-control">
+                    <option value="__ALL__">Show All Semesters</option>
+                    <option value="1st">1st Sem</option>
+                    <option value="2nd">2nd Sem</option>
+                    <option value="Summer">Summer</option>
+                  </select>
+                </div>
+              </div>
 
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Year</th>
-                    <th>Semester</th>
-                    <th>Course Name</th>
-                    <th>Course Code</th>
-                    <th>Units</th>
-                    <th>Mark</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody id="sogTableBody">
-                  <tr><td colspan="7">No summary entries yet.</td></tr>
-                </tbody>
-              </table>
+              <div class="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Course Name</th>
+                      <th>Course Code</th>
+                      <th>Units</th>
+                      <th>Year</th>
+                      <th>Sem</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stSubjectsBody">
+                    <tr>
+                      <td colspan="5">No subjects found.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>
@@ -214,16 +255,11 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Course</th>
-                    <th>Section</th>
-                    <th>Year</th>
-                    <th>Students</th>
-                    <th>Notes</th>
-                    <th>Actions</th>
+                    <th>Course</th><th>Section</th><th>Year</th><th>Students</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="sectionsTableBody">
-                  <tr><td colspan="6">No sections yet.</td></tr>
+                  <tr><td colspan="5">No sections yet.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -252,15 +288,67 @@
               <table>
                 <thead>
                   <tr>
-                    <th>Student ID</th>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Year Level</th>
-                    <th>Actions</th>
+                    <th>Student ID</th><th>Name</th><th>Email</th><th>Year Level</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="sectionMembersBody">
                   <tr><td colspan="5">No members yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TEACHERS -->
+        <section id="teachers" class="page" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Teachers</div>
+              <div class="section-actions">
+                <input id="teachersSearch" class="form-control" placeholder="Search teacher name or email" style="min-width:260px;">
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Name</th><th>Email</th><th>Assigned Sections</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="teachersTableBody">
+                  <tr><td colspan="4">No teachers found.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TEACHER DETAIL -->
+        <section id="teacher-detail" class="page" aria-labelledby="pageTitle">
+          <div class="content-section">
+            <div class="crumbs"><a href="#" id="backToTeachersLink">&larr; Back to Teachers</a></div>
+            <div class="section-header">
+              <div class="section-title">
+                Teacher: <span id="tdName" class="nowrap">—</span> <span class="muted">(<span id="tdEmail">—</span>)</span>
+              </div>
+              <div class="section-actions">
+                <div class="header-actions">
+                  <select id="assignSectionSelect" class="form-control" style="min-width:220px;">
+                    <option value="">— Select Section to Assign —</option>
+                  </select>
+                  <button class="btn btn-primary btn-sm" id="assignSectionBtn">ADD Section</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="muted" style="margin-bottom:8px;"><b>Teacher UID:</b> <span id="tdUid">—</span></div>
+
+            <div class="table-container">
+              <table>
+                <thead>
+                  <tr><th>Course</th><th>Section</th><th>Year</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="teacherSectionsBody">
+                  <tr><td colspan="4">No assigned sections.</td></tr>
                 </tbody>
               </table>
             </div>
@@ -283,12 +371,7 @@
             <div class="table-container">
               <table>
                 <thead>
-                  <tr>
-                    <th>From</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                  </tr>
+                  <tr><th>From</th><th>Date</th><th>Status</th><th>Actions</th></tr>
                 </thead>
                 <tbody id="messagesTableBody">
                   <tr><td colspan="4">No messages.</td></tr>
@@ -298,25 +381,19 @@
           </div>
         </section>
 
-        <!-- MESSAGE THREAD (chat view) -->
+        <!-- MESSAGE THREAD -->
         <section id="message-thread" class="page" aria-labelledby="pageTitle">
           <div class="content-section">
             <div class="crumbs"><a href="#" id="backToMessagesLink">&larr; Back to Messages</a></div>
             <div class="section-header">
-              <div class="section-title">
-                Conversation with <span id="mtStudentName">—</span>
-              </div>
+              <div class="section-title">Conversation with <span id="mtStudentName">—</span></div>
               <div class="section-actions">
-                <button class="btn btn-danger btn-sm" id="deleteThreadBtn" title="Delete this conversation">
-                  <i class="fas fa-trash"></i> Delete Conversation
-                </button>
-                <button class="btn btn-secondary btn-sm" id="markUnreadBtn" title="Show again in Messages">Mark as Unread</button>
+                <button class="btn btn-danger btn-sm" id="deleteThreadBtn"><i class="fas fa-trash"></i> Delete Conversation</button>
+                <button class="btn btn-secondary btn-sm" id="markUnreadBtn">Mark as Unread</button>
               </div>
             </div>
 
-            <div class="muted" style="margin-bottom:8px;">
-              <b>Student:</b> <span id="mtStudentEmail">—</span>
-            </div>
+            <div class="muted" style="margin-bottom:8px;"><b>Student:</b> <span id="mtStudentEmail">—</span></div>
 
             <div id="chatBox" style="border:1px solid #e5e7eb;border-radius:12px;height:420px;overflow:auto;padding:12px;background:#fafafa;">
               <div id="chatEmpty" class="muted">No messages yet.</div>
@@ -336,51 +413,7 @@
     </main>
   </div>
 
-  <!-- Modals -->
-  <!-- Add Student -->
-  <div class="modal" id="addStudentModal" aria-hidden="true" role="dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title">Add New Student</div>
-        <button class="close-modal" id="cancelAddStudent" aria-label="Close">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="addStudentForm">
-          <div class="form-group">
-            <label for="studentName">Full Name</label>
-            <input type="text" id="studentName" class="form-control" placeholder="Enter student name" required />
-          </div>
-          <div class="form-group">
-            <label for="studentEmail">Email Address</label>
-            <input type="email" id="studentEmail" class="form-control" placeholder="Enter student email" required />
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="studentGrade">Year Level</label>
-              <select id="studentGrade" class="form-control" required>
-                <option value="">Select Year</option>
-                <option>1st Year</option>
-                <option>2nd Year</option>
-                <option>3rd Year</option>
-                <option>4th Year</option>
-                <option>5th Year</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="studentId">Student ID</label>
-              <input type="text" id="studentId" class="form-control" placeholder="e.g. S2025-001" required />
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" id="cancelAddStudent2">Cancel</button>
-        <button class="btn btn-primary" type="submit" form="addStudentForm">Add Student</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Section -->
+  <!-- Modals (same as your version) -->
   <div class="modal" id="addSectionModal" aria-hidden="true" role="dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -390,30 +423,16 @@
       <div class="modal-body">
         <form id="addSectionForm">
           <div class="form-row">
-            <div class="form-group">
-              <label for="sectionCourse">Course</label>
-              <input type="text" id="sectionCourse" class="form-control" placeholder="e.g. BS Math" required />
-            </div>
-            <div class="form-group">
-              <label for="sectionName">Section</label>
-              <input type="text" id="sectionName" class="form-control" placeholder="e.g. A" required />
-            </div>
-            <div class="form-group">
-              <label for="sectionYear">Year</label>
+            <div class="form-group"><label for="sectionCourse">Course</label><input id="sectionCourse" class="form-control" placeholder="e.g. BS Math" required/></div>
+            <div class="form-group"><label for="sectionName">Section</label><input id="sectionName" class="form-control" placeholder="e.g. A" required/></div>
+            <div class="form-group"><label for="sectionYear">Year</label>
               <select id="sectionYear" class="form-control" required>
                 <option value="">Select Year</option>
-                <option>1st Year</option>
-                <option>2nd Year</option>
-                <option>3rd Year</option>
-                <option>4th Year</option>
-                <option>5th Year</option>
+                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>5th Year</option>
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label for="sectionNotes">Notes</label>
-            <input type="text" id="sectionNotes" class="form-control" placeholder="Optional notes"/>
-          </div>
+          <div class="form-group"><label for="sectionNotes">Notes</label><input id="sectionNotes" class="form-control" placeholder="Optional notes"/></div>
         </form>
       </div>
       <div class="modal-footer">
@@ -423,7 +442,6 @@
     </div>
   </div>
 
-  <!-- Add Member to Section -->
   <div class="modal" id="addMemberModal" aria-hidden="true" role="dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -439,36 +457,18 @@
             </select>
             <div class="muted" style="margin-top:6px;">Walang makita? Quick add below.</div>
           </div>
-
           <div class="filters">
-            <div class="form-group">
-              <label for="memberId">Student ID</label>
-              <input type="text" id="memberId" class="form-control" placeholder="e.g. S2025-001" />
-            </div>
-            <div class="form-group">
-              <label for="memberName">Full Name</label>
-              <input type="text" id="memberName" class="form-control" placeholder="e.g. Maria Santos" />
-            </div>
-            <div class="form-group">
-              <label for="memberEmail">Email</label>
-              <input type="email" id="memberEmail" class="form-control" placeholder="e.g. maria@school.edu" />
-            </div>
-            <div class="form-group">
-              <label for="memberYear">Year Level</label>
+            <div class="form-group"><label for="memberId">Student ID</label><input id="memberId" class="form-control" placeholder="e.g. S2025-001"/></div>
+            <div class="form-group"><label for="memberName">Full Name</label><input id="memberName" class="form-control" placeholder="e.g. Maria Santos"/></div>
+            <div class="form-group"><label for="memberEmail">Email</label><input id="memberEmail" type="email" class="form-control" placeholder="e.g. maria@school.edu"/></div>
+            <div class="form-group"><label for="memberYear">Year Level</label>
               <select id="memberYear" class="form-control">
                 <option value="">Select Year</option>
-                <option>1st Year</option>
-                <option>2nd Year</option>
-                <option>3rd Year</option>
-                <option>4th Year</option>
-                <option>5th Year</option>
+                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>5th Year</option>
               </select>
             </div>
           </div>
-
-          <div class="muted" style="margin-top:4px;">
-            Tip: pumili muna ng existing student para auto-fill. Kung wala pa siya sa Students, puwede mong i-quick add dito.
-          </div>
+          <div class="muted" style="margin-top:4px;">Tip: pumili muna ng existing student para auto-fill. Kung wala pa siya sa Students, puwede mong i-quick add dito.</div>
         </form>
       </div>
       <div class="modal-footer">
@@ -478,74 +478,6 @@
     </div>
   </div>
 
-  <!-- Add Summary of Grades Entry -->
-  <div class="modal" id="addSoGModal" aria-hidden="true" role="dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="modal-title">Add Summary of Grades</div>
-        <button class="close-modal" id="closeAddSoG" aria-label="Close">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="addSoGForm">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="sogYear">Year</label>
-              <select id="sogYear" class="form-control" required>
-                <option value="">Select Year</option>
-                <option>1st Year</option>
-                <option>2nd Year</option>
-                <option>3rd Year</option>
-                <option>4th Year</option>
-                <option>5th Year</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="sogSem">Semester</label>
-              <select id="sogSem" class="form-control" required>
-                <option value="">Select Semester</option>
-                <option>1st Sem</option>
-                <option>2nd Sem</option>
-                <option>Summer</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="sogCourseName">Course Name</label>
-              <input id="sogCourseName" class="form-control" placeholder="e.g. Calculus 1" required />
-            </div>
-            <div class="form-group">
-              <label for="sogCourseCode">Course Code</label>
-              <input id="sogCourseCode" class="form-control" placeholder="e.g. MATH101" required />
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label for="sogUnits">Units</label>
-              <input id="sogUnits" type="number" min="0" step="0.5" class="form-control" placeholder="e.g. 3" required />
-            </div>
-            <div class="form-group">
-              <label for="sogMark">Mark</label>
-              <input id="sogMark" class="form-control" placeholder="e.g. 92 or A" required />
-            </div>
-            </div>
-             <div class="form-group">
-             <label for="sogFile">Upload File</label>
-             <input type="file" id="sogFile" class="form-control" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png"/>
-             <small class="muted">Optional. Upload a file for the student to view/download.</small>
-           </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" id="cancelAddSoG">Cancel</button>
-        <button class="btn btn-primary" type="submit" form="addSoGForm">Add</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Add Grade for a Section Member (used by JS) -->
   <div class="modal" id="addMemberGradeModal" aria-hidden="true" role="dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -555,48 +487,26 @@
       <div class="modal-body">
         <form id="addMemberGradeForm">
           <div class="form-row">
-            <div class="form-group">
-              <label for="amgYear">Year</label>
+            <div class="form-group"><label for="amgYear">Year</label>
               <select id="amgYear" class="form-control" required>
                 <option value="">Select Year</option>
-                <option>1st Year</option>
-                <option>2nd Year</option>
-                <option>3rd Year</option>
-                <option>4th Year</option>
-                <option>5th Year</option>
+                <option>1st Year</option><option>2nd Year</option><option>3rd Year</option><option>4th Year</option><option>5th Year</option>
               </select>
             </div>
-            <div class="form-group">
-              <label for="amgSem">Semester</label>
+            <div class="form-group"><label for="amgSem">Semester</label>
               <select id="amgSem" class="form-control" required>
                 <option value="">Select Semester</option>
-                <option>1st Sem</option>
-                <option>2nd Sem</option>
-                <option>Summer</option>
+                <option>1st Sem</option><option>2nd Sem</option><option>Summer</option>
               </select>
             </div>
           </div>
-
           <div class="form-row">
-            <div class="form-group">
-              <label for="amgCourseName">Course Name</label>
-              <input id="amgCourseName" class="form-control" placeholder="e.g. Calculus 1" required />
-            </div>
-            <div class="form-group">
-              <label for="amgCourseCode">Course Code</label>
-              <input id="amgCourseCode" class="form-control" placeholder="e.g. MATH101" required />
-            </div>
+            <div class="form-group"><label for="amgCourseName">Course Name</label><input id="amgCourseName" class="form-control" placeholder="e.g. Calculus 1" required/></div>
+            <div class="form-group"><label for="amgCourseCode">Course Code</label><input id="amgCourseCode" class="form-control" placeholder="e.g. MATH101" required/></div>
           </div>
-
           <div class="form-row">
-            <div class="form-group">
-              <label for="amgUnits">Units</label>
-              <input id="amgUnits" type="number" min="0" step="0.5" class="form-control" placeholder="e.g. 3" required />
-            </div>
-            <div class="form-group">
-              <label for="amgMark">Mark</label>
-              <input id="amgMark" class="form-control" placeholder="e.g. 92 or A" required />
-            </div>
+            <div class="form-group"><label for="amgUnits">Units</label><input id="amgUnits" type="number" min="0" step="0.5" class="form-control" placeholder="e.g. 3" required/></div>
+            <div class="form-group"><label for="amgMark">Mark</label><input id="amgMark" class="form-control" placeholder="e.g. 92 or A" required/></div>
           </div>
         </form>
       </div>
@@ -607,7 +517,6 @@
     </div>
   </div>
 
-  <!-- Single JS include -->
   <script type="module" src="js/firebase.js"></script>
   <script type="module" src="js/admin.js"></script>
 </body>

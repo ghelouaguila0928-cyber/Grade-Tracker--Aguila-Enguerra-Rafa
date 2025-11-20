@@ -7,7 +7,10 @@
   <title>Student Dashboard — Grade Viewer</title>
 
   <link rel="stylesheet" href="css/student.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+  />
 </head>
 <body>
   <div class="dashboard">
@@ -23,6 +26,13 @@
           <i class="fas fa-chart-bar"></i>
           <span>My Grades</span>
         </a>
+
+        <!-- Subjects Taken tab -->
+        <a href="#" class="nav-item" data-page="subjects">
+          <i class="fas fa-book-open"></i>
+          <span>Subjects Taken</span>
+        </a>
+
         <a href="#" class="nav-item" data-page="messages">
           <i class="fas fa-comments"></i>
           <span>Chat</span>
@@ -53,14 +63,19 @@
       <header class="header">
         <div class="header-title" id="pageTitle">My Grades</div>
         <div class="header-actions">
-          <button class="header-action-btn" title="Notifications" id="notificationsBtn">
+          <button
+            class="header-action-btn"
+            title="Notifications"
+            id="notificationsBtn"
+          >
             <i class="fas fa-bell"></i>
             <span class="notification-badge" id="notificationsCount">2</span>
           </button>
-          <button class="header-action-btn" title="Search" id="searchBtn">
-            <i class="fas fa-search"></i>
-          </button>
-          <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar">
+          <button
+            class="header-action-btn"
+            id="toggleSidebar"
+            title="Toggle Sidebar"
+          >
             <i class="fas fa-bars"></i>
           </button>
         </div>
@@ -68,12 +83,19 @@
 
       <div class="content">
         <!-- GRADES -->
-        <section id="grades" class="page active" aria-labelledby="pageTitle">
+        <section
+          id="grades"
+          class="page active"
+          aria-labelledby="pageTitle"
+        >
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Summary of Grades</div>
               <div class="section-actions">
-                <button class="btn btn-primary btn-sm" id="downloadSummaryBtn">
+                <button
+                  class="btn btn-primary btn-sm"
+                  id="downloadSummaryBtn"
+                >
                   <i class="fas fa-file-arrow-down"></i> Download CSV
                 </button>
                 <button class="btn btn-secondary btn-sm" id="printSummaryBtn">
@@ -103,7 +125,7 @@
                 </select>
               </div>
               <div class="form-group" style="align-self:flex-end">
-                <button class="btn btn-primary" id="generateSummaryBtn">  
+                <button class="btn btn-primary" id="generateSummaryBtn">
                   <i class="fas fa-wand-magic-sparkles"></i> LOAD
                 </button>
               </div>
@@ -111,10 +133,16 @@
 
             <!-- Results -->
             <div id="summaryCard" class="summary-card">
-              <div class="summary-meta" id="summaryMeta">Select Year Level & Semester then click Generate.</div>
+              <div class="summary-meta" id="summaryMeta">
+                Select Year Level & Semester then click Generate.
+              </div>
 
               <div class="table-container summary-compact">
-                <table class="summary-table" id="summaryTable" aria-describedby="summaryMeta">
+                <table
+                  class="summary-table"
+                  id="summaryTable"
+                  aria-describedby="summaryMeta"
+                >
                   <thead>
                     <tr>
                       <th>Course Name</th>
@@ -124,22 +152,124 @@
                     </tr>
                   </thead>
                   <tbody id="summaryTableBody">
-                    <tr><td colspan="4" class="muted">No data</td></tr>
+                    <tr>
+                      <td colspan="4" class="muted">No data</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
 
               <!-- Totals below the table -->
               <div class="totals-row">
-                <div><strong>Total Units:</strong> <span id="totalUnits">0</span></div>
-                <div><strong>GWA:</strong> <span id="gwa">—</span></div>
+                <div>
+                  <strong>Total Units:</strong>
+                  <span id="totalUnits">0</span>
+                </div>
+                <div>
+                  <strong>GWA:</strong> <span id="gwa">—</span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- CHAT: Student -> Admin only -->
-        <section id="messages" class="page" aria-labelledby="pageTitle">
+        <!-- SUBJECTS TAKEN -->
+        <section
+          id="subjects"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
+          <div class="content-section">
+            <div class="section-header">
+              <div class="section-title">Subjects Taken</div>
+            </div>
+
+            <!-- Filters para Year & Sem -->
+            <div class="filters-row">
+              <div class="form-group">
+                <label for="subjectsYearLevel">Year Level</label>
+                <select id="subjectsYearLevel" class="form-control">
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                  <!-- <option value="5">5th Year</option> -->
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="subjectsSem">Semester</label>
+                <select id="subjectsSem" class="form-control">
+                  <option value="1st">1st Sem</option>
+                  <option value="2nd">2nd Sem</option>
+                  <option value="Summer">Summer</option>
+                </select>
+              </div>
+              <div class="form-group" style="align-self:flex-end">
+                <button
+                  class="btn btn-primary btn-sm"
+                  id="addSubjectRowBtn"
+                >
+                  <i class="fas fa-plus"></i> Add Subject
+                </button>
+              </div>
+            </div>
+
+            <!-- Table ng subjects -->
+            <div class="table-container">
+              <table class="summary-table" id="subjectsTable">
+               <thead>
+  <tr>
+    <th>Course Name</th>
+    <th>Course Code</th>
+    <th>Units</th>
+    <th>Year</th>
+    <th>Semester</th>
+    <th>Actions</th>
+  </tr>
+</thead>
+                <tbody id="subjectsTableBody">
+                  <tr data-empty="true">
+                    <td colspan="7" class="muted">
+                      Click "Add Subject" para maglagay ng subject sa napiling
+                      year at sem.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Actions -->
+            <div
+              class="section-footer"
+              style="
+                margin-top: 12px;
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+              "
+            >
+              <button
+                class="btn btn-secondary btn-sm"
+                id="clearSubjectsBtn"
+              >
+                <i class="fas fa-eraser"></i> Clear
+              </button>
+              <button
+                class="btn btn-primary btn-sm"
+                id="saveSubjectsBtn"
+              >
+                <i class="fas fa-save"></i> Save
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- CHAT: Student -> Admin (and Teacher via backend logic) -->
+        <section
+          id="messages"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Chat with Admin</div>
@@ -147,7 +277,8 @@
 
             <div class="chat-panel">
               <div class="chat-status">
-                <i class="fas fa-shield-alt"></i> Messages are sent to <strong>Admin</strong>.
+                <i class="fas fa-shield-alt"></i> Messages are sent to
+                <strong>Admin</strong>.
               </div>
 
               <div class="chat-thread" id="chatThread">
@@ -159,8 +290,18 @@
               </div>
 
               <form id="chatForm" class="chat-composer">
-                <textarea id="chatInput" class="form-control" rows="2" placeholder="Type a message for Admin…" required></textarea>
-                <button class="btn btn-primary" id="sendChatBtn" type="submit">
+                <textarea
+                  id="chatInput"
+                  class="form-control"
+                  rows="2"
+                  placeholder="Type a message for Admin…"
+                  required
+                ></textarea>
+                <button
+                  class="btn btn-primary"
+                  id="sendChatBtn"
+                  type="submit"
+                >
                   <i class="fas fa-paper-plane"></i> Send
                 </button>
               </form>
@@ -171,7 +312,11 @@
         </section>
 
         <!-- PROFILE -->
-        <section id="profile" class="page" aria-labelledby="pageTitle">
+        <section
+          id="profile"
+          class="page"
+          aria-labelledby="pageTitle"
+        >
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Profile</div>
@@ -183,19 +328,39 @@
               </div>
               <div class="profile-info">
                 <h3 id="profileStudentName">Student</h3>
-                <p class="profile-meta" id="profileStudentId">Student ID: —</p>
+                <p class="profile-meta" id="profileStudentId">
+                  Student ID: —
+                </p>
               </div>
             </div>
 
             <div class="table-container">
               <table>
                 <tbody>
-                  <tr><th style="width:220px;">Full Name</th><td id="p_name">—</td></tr>
-                  <tr><th>Email</th><td id="p_email">—</td></tr>
-                  <tr><th>Student ID</th><td id="p_studentId">—</td></tr>
-                  <tr><th>Course</th><td id="p_course">—</td></tr>
-                  <tr><th>Year Level</th><td id="p_year">—</td></tr>
-                  <tr><th>Section</th><td id="p_section">—</td></tr>
+                  <tr>
+                    <th style="width:220px;">Full Name</th>
+                    <td id="p_name">—</td>
+                  </tr>
+                  <tr>
+                    <th>Email</th>
+                    <td id="p_email">—</td>
+                  </tr>
+                  <tr>
+                    <th>Student ID</th>
+                    <td id="p_studentId">—</td>
+                  </tr>
+                  <tr>
+                    <th>Course</th>
+                    <td id="p_course">—</td>
+                  </tr>
+                  <tr>
+                    <th>Year Level</th>
+                    <td id="p_year">—</td>
+                  </tr>
+                  <tr>
+                    <th>Section</th>
+                    <td id="p_section">—</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -210,7 +375,13 @@
   </div>
 
   <!-- Toast -->
-  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+  <div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
     <i class="fas fa-check-circle"></i>
     <span id="toastMessage">Operation completed successfully</span>
   </div>

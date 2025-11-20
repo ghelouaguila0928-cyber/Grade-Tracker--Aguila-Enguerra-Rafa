@@ -1,22 +1,35 @@
 // js/admin.js
 import { auth, db } from "./firebase.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
-  onAuthStateChanged,
-  signOut,
-} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import {
-  doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc,
-  collection, collectionGroup, getDocs, query, where,
-  serverTimestamp, getCountFromServer, onSnapshot,
+  doc,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  collectionGroup,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  getCountFromServer,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-/* ============== ROUTE GUARD ============== */
+/* ================= ROUTE GUARD (Admin only) ================= */
 (async function guardAdmin() {
   document.documentElement.style.visibility = "hidden";
+
   await new Promise((resolve) => {
     onAuthStateChanged(auth, async (user) => {
       try {
-        if (!user) { location.href = "auth.html"; return; }
+        if (!user) {
+          location.href = "auth.html";
+          return;
+        }
+
         const token = await user.getIdTokenResult(true);
         let isAdmin = token?.claims?.admin === true;
 
@@ -24,172 +37,350 @@ import {
           try {
             const snap = await getDoc(doc(db, "users", user.uid));
             const role = (snap.exists() ? (snap.data().role || "student") : "student").toLowerCase();
-            isAdmin = ["admin","administrator","superadmin"].includes(role);
-          } catch { isAdmin = false; }
+            isAdmin = ["admin", "administrator", "superadmin"].includes(role);
+          } catch {
+            isAdmin = false;
+          }
         }
 
-        if (!isAdmin) { alert("Not authorized."); location.href = "auth.html"; return; }
+        if (!isAdmin) {
+          alert("Not authorized.");
+          location.href = "auth.html";
+          return;
+        }
 
         document.documentElement.style.visibility = "visible";
         initDashboard();
       } catch (e) {
         console.error("[admin guard] error:", e);
         location.href = "auth.html";
-      } finally { resolve(); }
+      } finally {
+        resolve();
+      }
     });
-    const fileUploadInput = document.getElementById("fileUploadInput");
-const uploadFileBtn = document.getElementById("uploadFileBtn");
-const uploadedFilesList = document.getElementById("uploadedFilesList");
-
-uploadFileBtn?.addEventListener("click", async () => {
-  if (!CURRENT_STUDENT || !fileUploadInput.files.length) {
-    alert("Select a file and open a student first.");
-    return;
-  }
-
-  const file = fileUploadInput.files[0];
-  const fileRef = storageRef(storage, `student_files/${CURRENT_STUDENT.uid}/${file.name}`);
-
-  try {
-    await uploadBytes(fileRef, file);
-    const url = await getDownloadURL(fileRef);
-    alert("File uploaded successfully!");
-
-    // Add to UI
-    const li = document.createElement("li");
-    li.innerHTML = `<a href="${url}" target="_blank">${file.name}</a> <button data-name="${file.name}">Delete</button>`;
-    uploadedFilesList.appendChild(li);
-
-    li.querySelector("button")?.addEventListener("click", async (e) => {
-      const name = e.target.dataset.name;
-      const delRef = storageRef(storage, `student_files/${CURRENT_STUDENT.uid}/${name}`);
-      await deleteObject(delRef);
-      li.remove();
-      alert("File deleted.");
-    });
-
-  } catch (err) {
-    console.error("Upload failed:", err);
-    alert("Failed to upload file.");
-  }
-});
-
   });
 })();
 
-/* ============== HELPERS ============== */
-const escapeHTML = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-const semKey  = (label) => { const v = String(label||"").toLowerCase(); if (v.startsWith("1")) return "1st"; if (v.startsWith("2")) return "2nd"; return "Summer"; };
+/* ================= Helpers ================= */
+const escapeHTML = (s) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[c]));
 
-function yearKey(label) {
+const semKey = (label) => {
+  const v = String(label || "").toLowerCase();
+  if (v.startsWith("1")) return "1st";
+  if (v.startsWith("2")) return "2nd";
+  return "Summer";
+};
+
+const yearKey = (label) => {
   const v = String(label ?? "");
-  const m = v.match(/^(\d)/); if (m) return m[1];
+  const m = v.match(/^(\d)/);
+  if (m) return m[1];
   const low = v.toLowerCase();
   if (low.includes("first")) return "1";
   if (low.includes("second")) return "2";
   if (low.includes("third")) return "3";
   if (low.includes("fourth")) return "4";
   if (low.includes("fifth")) return "5";
-  return v.replace(/[^0-9]/g,"") || "";
-}
-const prettyYear = (y) => {
-  const k = yearKey(y);
-  return ({ "1":"1st Year","2":"2nd Year","3":"3rd Year","4":"4th Year","5":"5th Year" }[k] || (k ? `Year ${k}` : "—"));
+  return v.replace(/[^0-9]/g, "") || "";
 };
-const tsToLocal = (t) => t?.toDate ? new Date(t.toDate()).toLocaleString() : "";
 
-const downloadFile = (filename, text, mimetype = "text/csv;charset=utf-8") => {
-  const blob = new Blob([text], { type: mimetype });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename; document.body.appendChild(a);
-  a.click();
-  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
-};
-const confirmRun = async (msg, fn) => { if (!confirm(msg)) return false; await fn(); return true; };
+const prettyYear = (y) =>
+  ({
+    "1": "1st Year",
+    "2": "2nd Year",
+    "3": "3rd Year",
+    "4": "4th Year",
+    "5": "5th Year"
+  }[String(y)] || (y ? `Year ${y}` : "—"));
 
 const toNumberGrade = (g) => {
   const s = String(g ?? "").trim();
   if (!s) return null;
-  const maybe = Number(s.replace(",", ".")); if (Number.isFinite(maybe)) return maybe;
+  const maybe = Number(s.replace(",", "."));
+  if (Number.isFinite(maybe)) return maybe;
   const L = s.toUpperCase();
-  const map = { "A+":98,"A":95,"A-":90,"B+":88,"B":85,"B-":80,"C+":78,"C":75,"C-":70,"D":65,"F":55 };
+  const map = {
+    "A+": 98,
+    A: 95,
+    "A-": 90,
+    "B+": 88,
+    B: 85,
+    "B-": 80,
+    "C+": 78,
+    C: 75,
+    "C-": 70,
+    D: 65,
+    F: 55
+  };
   return map[L] ?? null;
 };
-const debounce = (fn, wait = 400) => { let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), wait); }; };
 
-/* ============== MAIN ============== */
+const tsToLocal = (t) =>
+  t?.toDate ? new Date(t.toDate()).toLocaleString() : "";
+
+const debounce = (fn, wait = 400) => {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), wait);
+  };
+};
+
+const initials = (name, fb = "U") =>
+  (name || fb)
+    .split(" ")
+    .filter(Boolean)
+    .map((x) => x[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+/* Small helper for deleting a whole subcollection */
+async function deleteSubcollection([c1, id1, c2]) {
+  const ref = collection(db, c1, id1, c2);
+  const snap = await getDocs(ref);
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+}
+
+/* ================= Main ================= */
 function initDashboard() {
+  /* ---------- DOM ---------- */
   const overlay = document.getElementById("sidebarOverlay");
   const toggleSidebarBtn = document.getElementById("toggleSidebar");
   const pageTitle = document.getElementById("pageTitle");
   const navLinks = document.querySelectorAll(".nav-item");
   const pages = document.querySelectorAll(".page");
-  const notifBtn = document.getElementById("notifBtn");
-  const notifCountEl = document.getElementById("notifCount");
+
+  // Notifications DOM
+  const openNotifsBtn = document.getElementById("openNotifs");
+  const notifBadge = document.getElementById("notifBadge");
+  const notifMenu = document.getElementById("notifMenu");
+  const notifList = document.getElementById("notifList");
+  const notifEmpty = document.getElementById("notifEmpty");
+  const notifViewAll = document.getElementById("notifViewAll");
+  const notifMarkRead = document.getElementById("notifMarkRead");
 
   const TITLES = {
     students: "Student Management",
     "student-detail": "Student Detail",
     sections: "Sections",
     "section-detail": "Section Details",
+    teachers: "Teachers",
+    "teacher-detail": "Teacher Detail",
     messages: "Messages",
-    "message-thread": "Message Thread",
+    "message-thread": "Message Thread"
   };
 
-  /* ---------- Notifications ---------- */
-  let notifCount = 0;
-  const setNotif = (n) => {
-    notifCount = Math.max(0, n);
-    if (!notifCount) {
-      notifCountEl.textContent = "0";
-      notifCountEl.style.display = "none";
-    } else {
-      notifCountEl.textContent = String(notifCount);
-      notifCountEl.style.display = "inline-block";
-    }
-  };
-  const incNotif = (n=1)=> setNotif(notifCount + n);
-  setNotif(0);
-  notifBtn?.addEventListener("click", ()=> setNotif(0));
-
-  /* ---------- Nav + pages ---------- */
-  function showPage(key) {
-    pages.forEach((p) => p.classList.toggle("active", p.id === key));
-    navLinks.forEach((a) => a.classList.toggle("active", a.dataset.page === key));
-    pageTitle.textContent = TITLES[key] || "Admin Portal";
-    window.scrollTo({ top: 0, behavior: "instant" });
-    if (key === "messages") {
-      setNotif(0);
-      renderThreadsTable(THREADS_CACHE);
-    }
-  }
-  navLinks.forEach((a) =>
-    a.addEventListener("click", (e) => {
-      e.preventDefault();
-      showPage(a.dataset.page);
-      document.body.classList.remove("sidebar-open");
-      overlay?.classList.remove("show");
-    })
-  );
-
-  // Sidebar toggle (button beside bell)
+  /* ---------- Sidebar toggle ---------- */
   toggleSidebarBtn?.addEventListener("click", () => {
-    const open = !document.body.classList.contains("sidebar-open");
-    document.body.classList.toggle("sidebar-open", open);
-    overlay?.classList.toggle("show", open);
-    overlay?.setAttribute("aria-hidden", open ? "false" : "true");
+    const mobile = window.matchMedia("(max-width: 1024px)").matches;
+    if (mobile) {
+      const open = !document.body.classList.contains("sidebar-open");
+      document.body.classList.toggle("sidebar-open", open);
+      overlay?.classList.toggle("show", open);
+      overlay?.setAttribute("aria-hidden", open ? "false" : "true");
+    } else {
+      document.getElementById("sidebar")?.classList.toggle("collapsed");
+    }
   });
+
   overlay?.addEventListener("click", () => {
     document.body.classList.remove("sidebar-open");
     overlay?.classList.remove("show");
     overlay?.setAttribute("aria-hidden", "true");
   });
 
-  document.getElementById("backToStudentsLink")?.addEventListener("click", (e) => { e.preventDefault(); showPage("students"); });
-  document.getElementById("backToSectionsLink")?.addEventListener("click", (e) => { e.preventDefault(); showPage("sections"); });
+  /* ---------- Nav + pages ---------- */
+  function showPage(key) {
+    pages.forEach((p) => p.classList.toggle("active", p.id === key));
+    navLinks.forEach((a) =>
+      a.classList.toggle("active", a.dataset.page === key)
+    );
+    pageTitle.textContent = TITLES[key] || "Admin Portal";
+    window.scrollTo({ top: 0, behavior: "instant" });
+
+    if (key === "messages") {
+      markNotificationsSeen().catch(() => {});
+      renderThreadsTable(THREADS_CACHE);
+    }
+  }
+
+  navLinks.forEach((a) =>
+    a.addEventListener("click", (e) => {
+      e.preventDefault();
+      showPage(a.dataset.page);
+      document.body.classList.remove("sidebar-open");
+      overlay?.classList.remove("show");
+      overlay?.setAttribute("aria-hidden", "true");
+    })
+  );
 
   showPage("students");
+
+  /* ---------- Notifications ---------- */
+  function renderNotifBadge(count) {
+    if (!notifBadge) return;
+    if (count <= 0) {
+      notifBadge.setAttribute("hidden", "");
+      return;
+    }
+    notifBadge.textContent = String(count);
+    notifBadge.removeAttribute("hidden");
+  }
+
+  function renderNotifList(items) {
+    if (!notifList) return;
+    notifList.innerHTML = "";
+    if (!items.length) {
+      notifEmpty.style.display = "block";
+      return;
+    }
+    notifEmpty.style.display = "none";
+
+    for (const it of items) {
+      const row = document.createElement("div");
+      row.className =
+        "notif-item " +
+        (it.type === "admin" ? "notif-type-admin" : "notif-type-dm");
+      row.innerHTML = `
+        <div class="notif-ava">${escapeHTML(it.initials)}</div>
+        <div>
+          <div class="notif-title">${escapeHTML(it.title)}</div>
+          <div class="notif-meta">${escapeHTML(it.preview)} • ${escapeHTML(
+        it.when
+      )}</div>
+        </div>
+      `;
+      row.addEventListener("click", async () => {
+        notifMenu.setAttribute("hidden", "");
+        showPage("messages");
+        await openThread(it.threadId, {
+          studentUid: it.studentUid,
+          name: it.title,
+          email: it.email || ""
+        });
+        markNotificationsSeen().catch(() => {});
+      });
+      notifList.appendChild(row);
+    }
+  }
+
+  openNotifsBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isHidden = notifMenu.hasAttribute("hidden");
+    notifMenu.toggleAttribute("hidden", !isHidden);
+    openNotifsBtn.setAttribute("aria-expanded", String(isHidden));
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!notifMenu || notifMenu.hasAttribute("hidden")) return;
+    if (e.target.closest(".notif-wrap")) return;
+    notifMenu.setAttribute("hidden", "");
+    openNotifsBtn?.setAttribute("aria-expanded", "false");
+  });
+
+  notifViewAll?.addEventListener("click", () => {
+    notifMenu.setAttribute("hidden", "");
+    showPage("messages");
+    renderThreadsTable(THREADS_CACHE);
+    markNotificationsSeen().catch(() => {});
+  });
+
+  notifMarkRead?.addEventListener("click", () => {
+    markNotificationsSeen().catch(() => {});
+    renderNotifBadge(0);
+    renderNotifList([]);
+  });
+
+  async function markNotificationsSeen() {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    await setDoc(
+      doc(db, "adminMeta", uid),
+      { lastOpenedAt: serverTimestamp() },
+      { merge: true }
+    );
+  }
+
+  function formatWhenMs(ms) {
+    return new Date(ms).toLocaleString();
+  }
+
+  function startThreadsWatcher() {
+    const tRef = collection(db, "threads");
+    let lastOpened = 0;
+    let cache = [];
+
+    const recompute = async () => {
+      try {
+        const meta = await getDoc(
+          doc(db, "adminMeta", auth.currentUser?.uid || "_")
+        );
+        lastOpened = meta?.exists()
+          ? meta.data().lastOpenedAt?.toMillis?.() || 0
+          : 0;
+      } catch {
+        lastOpened = 0;
+      }
+
+      const unread = [];
+      for (const r of cache) {
+        const upd = r.updatedAt?.toMillis?.() || 0;
+        const isNewFromStudent =
+          r.lastSender && r.studentUid && r.lastSender === r.studentUid;
+        if (isNewFromStudent && upd > lastOpened) {
+          unread.push({
+            type: "dm",
+            threadId: r.id,
+            studentUid: r.studentUid,
+            title:
+              r.studentName ||
+              r.studentEmail ||
+              r.studentUid ||
+              "Student",
+            email: r.studentEmail || "",
+            preview: r.lastMessage?.text || "New message",
+            when: formatWhenMs(upd),
+            initials: initials(r.studentName || r.studentEmail, "S")
+          });
+        }
+      }
+
+      unread.sort((a, b) => new Date(b.when) - new Date(a.when));
+      renderNotifBadge(unread.length);
+      renderNotifList(unread.slice(0, 20));
+    };
+
+    onSnapshot(
+      tRef,
+      (qs) => {
+        cache = qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+        THREADS_CACHE = cache
+          .slice()
+          .sort(
+            (a, b) =>
+              (b?.updatedAt?.toMillis?.() ?? 0) -
+              (a?.updatedAt?.toMillis?.() ?? 0)
+          );
+        renderThreadsTable(THREADS_CACHE);
+        recompute().catch(() => {});
+      },
+      (e) => {
+        console.warn("[threads] onSnapshot error:", e);
+        THREADS_CACHE = [];
+        renderThreadsTable([]);
+        renderNotifBadge(0);
+        renderNotifList([]);
+      }
+    );
+  }
 
   /* ---------- Global state ---------- */
   let STUDENTS = [];
@@ -197,24 +388,31 @@ function initDashboard() {
   let CURRENT_STUDENT = null;
   let CURRENT_SECTION = null;
   let SECTION_MEMBERS = [];
-  let CURRENT_MEMBER_FOR_GRADE = null;
   let STUDENT_AVG = new Map();
+
+  let TEACHERS = [];
+  let TEACHING = [];
+  let TEACHING_BY_TEACHER = new Map();
+  let CURRENT_TEACHER = null;
 
   let THREADS_CACHE = [];
   let CURRENT_THREAD_ID = null;
-  let CURRENT_THREAD_META = null; // {studentUid,name,email,subject?}
+  let CURRENT_THREAD_META = null;
 
-  /* ---------- Realtime subscriptions ---------- */
+  /* ---------- Realtime: users, teaching ---------- */
   let unsubUsers = null;
-  let unsubThreads = null;
+  let unsubTeaching = null;
 
   function mapUserDoc(d) {
     const v = d.data() || {};
     const studentId =
-      v.studentId ?? v.studentID ?? v.student_id ?? v.studentIdNumber ?? v.studentNumber ?? "";
-    const yearRaw =
-      v.year ?? v.yearLevel ?? v.gradeLevel ?? v.level ?? "";
-
+      v.studentId ??
+      v.studentID ??
+      v.student_id ??
+      v.studentIdNumber ??
+      v.studentNumber ??
+      "";
+    const yearRaw = v.year ?? v.yearLevel ?? v.gradeLevel ?? v.level ?? "";
     return {
       uid: d.id,
       id: String(studentId || "").trim(),
@@ -223,7 +421,7 @@ function initDashboard() {
       year: yearKey(yearRaw),
       course: v.course || "",
       section: v.section || "",
-      role: (v.role || "").toLowerCase(),
+      role: (v.role || "").toLowerCase()
     };
   }
 
@@ -234,82 +432,104 @@ function initDashboard() {
       loadStudentAverages().catch(console.error);
     }, 500);
 
-    unsubUsers = onSnapshot(usersRef, (snap) => {
-      const all = snap.docs.map(mapUserDoc);
-      STUDENTS = all.filter(s => s.role === "student" || !!s.id);
-      renderStudents();
-      refreshMemberSelect();
-      refreshAveragesDebounced();
-    }, (err) => {
-      console.error("[students] onSnapshot error:", err);
-      STUDENTS = [];
-      renderStudents();
-    });
+    unsubUsers = onSnapshot(
+      usersRef,
+      (snap) => {
+        const all = snap.docs.map(mapUserDoc);
+        STUDENTS = all.filter(
+          (s) => s.role === "student" || !!s.id
+        );
+        TEACHERS = all.filter((s) => s.role === "teacher");
+
+        renderStudents();
+        refreshMemberSelect();
+        renderTeachers();
+        refreshAveragesDebounced();
+      },
+      (err) => {
+        console.error("[students] onSnapshot error:", err);
+        STUDENTS = [];
+        TEACHERS = [];
+        renderStudents();
+        renderTeachers();
+      }
+    );
   }
 
-  function subscribeThreads() {
-    if (unsubThreads) unsubThreads();
-    const tRef = collection(db, "threads");
-    let firstThreadsSnap = true;
+  function subscribeTeaching() {
+    if (unsubTeaching) unsubTeaching();
 
-    unsubThreads = onSnapshot(tRef, (qs) => {
-      if (!firstThreadsSnap) {
-        qs.docChanges().forEach((ch) => {
-          if (ch.type === "added" || ch.type === "modified") {
-            const r = { id: ch.doc.id, ...ch.doc.data() };
-            const isNewFromStudent = r.lastSender === r.studentUid;
-            const isViewingSame = CURRENT_THREAD_ID && CURRENT_THREAD_ID === r.id;
-            if (isNewFromStudent && !isViewingSame) incNotif(1);
-          }
-        });
+    unsubTeaching = onSnapshot(
+      collection(db, "teaching"),
+      async (snap) => {
+        TEACHING = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        await ensureSectionsLoaded();
+
+        TEACHING_BY_TEACHER = new Map();
+        for (const t of TEACHING) {
+          const s = SECTIONS.find((x) => x.id === t.sectionId);
+          const label = s
+            ? `${s.course || "—"} • ${s.name || "—"} (${prettyYear(
+                s.year
+              )})`
+            : "(missing section)";
+          const item = {
+            sectionId: t.sectionId,
+            label,
+            course: s?.course || "",
+            name: s?.name || "",
+            year: s?.year || ""
+          };
+          const arr =
+            TEACHING_BY_TEACHER.get(t.teacherUid) || [];
+          arr.push(item);
+          TEACHING_BY_TEACHER.set(t.teacherUid, arr);
+        }
+
+        renderTeachers();
+        if (CURRENT_TEACHER)
+          renderTeacherDetailAssignments(CURRENT_TEACHER.uid);
+      },
+      () => {
+        TEACHING = [];
+        TEACHING_BY_TEACHER = new Map();
+        renderTeachers();
+        if (CURRENT_TEACHER)
+          renderTeacherDetailAssignments(CURRENT_TEACHER.uid);
       }
-      firstThreadsSnap = false;
-
-      const rows = qs.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a,b) => (b?.updatedAt?.toMillis?.() ?? 0) - (a?.updatedAt?.toMillis?.() ?? 0));
-      THREADS_CACHE = rows;
-      renderThreadsTable(rows);
-    }, (e) => {
-      console.warn("[messages] threads onSnapshot error:", e);
-      THREADS_CACHE = [];
-      renderThreadsTable([]);
-    });
+    );
   }
 
   window.addEventListener("beforeunload", () => {
-    if (unsubUsers) unsubUsers();
-    if (unsubThreads) unsubThreads();
+    unsubUsers?.();
+    unsubTeaching?.();
   });
 
-  /* ============== STUDENTS LIST ============== */
+  /* ================= STUDENTS LIST ================= */
   const studentsTableBody = document.getElementById("studentsTableBody");
-  const studentsFilterYear = document.getElementById("studentsFilterYear");
+  const studentsFilterYear = document.getElementById(
+    "studentsFilterYear"
+  );
   const studentsSearch = document.getElementById("studentsSearch");
   const studentsSort = document.getElementById("studentsSort");
-  const addStudentBtn = document.getElementById("addStudentBtn");
-  const exportStudentsBtn = document.getElementById("exportStudentsBtn");
-  const addStudentModal = document.getElementById("addStudentModal");
-  const addStudentForm = document.getElementById("addStudentForm");
-  const cancelAddStudent = document.getElementById("cancelAddStudent");
-  const cancelAddStudent2 = document.getElementById("cancelAddStudent2");
-
-  async function loadStudents() {
-    const snap = await getDocs(collection(db, "users"));
-    const all = snap.docs.map(mapUserDoc);
-    STUDENTS = all.filter(s => s.role === "student" || !!s.id);
-    renderStudents();
-    refreshMemberSelect();
-  }
 
   async function loadStudentAverages() {
     const pairs = await Promise.all(
       STUDENTS.map(async (s) => {
         try {
-          const snap = await getDocs(collection(db, "users", s.uid, "grades"));
+          const snap = await getDocs(
+            collection(db, "users", s.uid, "grades")
+          );
           const nums = snap.docs
-            .map(d => toNumberGrade(d.data().grade ?? d.data().mark))
-            .filter(n => Number.isFinite(n));
-          const avg = nums.length ? (nums.reduce((a,b)=>a+b,0) / nums.length) : null;
+            .map((d) =>
+              toNumberGrade(
+                d.data().grade ?? d.data().mark
+              )
+            )
+            .filter((n) => Number.isFinite(n));
+          const avg = nums.length
+            ? nums.reduce((a, b) => a + b, 0) / nums.length
+            : null;
           return [s.uid, avg];
         } catch {
           return [s.uid, null];
@@ -322,121 +542,224 @@ function initDashboard() {
 
   function sortStudents(arr) {
     const key = studentsSort?.value || "year";
-    const byYear = (a) => parseInt(yearKey(a.year) || "999", 10);
-    if (key === "name") return arr.sort((a,b)=> String(a.name).localeCompare(String(b.name)));
-    if (key === "id")   return arr.sort((a,b)=> String(a.id).localeCompare(String(b.id)));
-    return arr.sort((a,b)=> byYear(a) - byYear(b));
+    const byYear = (a) =>
+      parseInt(yearKey(a.year) || "999", 10);
+
+    if (key === "name")
+      return arr.sort((a, b) =>
+        String(a.name).localeCompare(String(b.name))
+      );
+    if (key === "id")
+      return arr.sort((a, b) =>
+        String(a.id).localeCompare(String(b.id))
+      );
+    return arr.sort((a, b) => byYear(a) - byYear(b));
   }
 
   function renderStudents() {
     const yrFilter = studentsFilterYear?.value || "__ALL__";
-    const term = (studentsSearch?.value || "").toLowerCase().trim();
+    const term = (studentsSearch?.value || "")
+      .toLowerCase()
+      .trim();
 
     let data = [...STUDENTS];
 
     if (yrFilter !== "__ALL__") {
       const yk = yearKey(yrFilter);
-      data = data.filter(s => yearKey(s.year) === yk);
+      data = data.filter((s) => yearKey(s.year) === yk);
     }
+
     if (term) {
-      data = data.filter(s =>
-        (s.name || "").toLowerCase().includes(term) ||
-        (s.id || "").toLowerCase().includes(term) ||
-        (s.email || "").toLowerCase().includes(term)
+      data = data.filter(
+        (s) =>
+          (s.name || "").toLowerCase().includes(term) ||
+          (s.id || "").toLowerCase().includes(term) ||
+          (s.email || "").toLowerCase().includes(term)
       );
     }
+
     data = sortStudents(data);
 
     if (!data.length) {
-      studentsTableBody.innerHTML = `<tr><td colspan="7">No students found.</td></tr>`;
+      studentsTableBody.innerHTML =
+        `<tr><td colspan="7">No students found.</td></tr>`;
       return;
     }
 
-    studentsTableBody.innerHTML = data.map(s => `
+    studentsTableBody.innerHTML = data
+      .map(
+        (s) => `
       <tr data-uid="${s.uid}">
         <td>${escapeHTML(s.id || "—")}</td>
-        <td class="linkable" style="cursor:pointer;text-decoration:underline;">${escapeHTML(s.name || "—")}</td>
+        <td class="linkable" style="cursor:pointer;text-decoration:underline;">
+          ${escapeHTML(s.name || "—")}
+        </td>
         <td>${escapeHTML(s.email || "—")}</td>
         <td>${escapeHTML(prettyYear(s.year))}</td>
-        <td>${STUDENT_AVG.get(s.uid) == null ? "—" : STUDENT_AVG.get(s.uid).toFixed(2)}</td>
+        <td>${
+          STUDENT_AVG.get(s.uid) == null
+            ? "—"
+            : STUDENT_AVG.get(s.uid).toFixed(2)
+        }</td>
         <td>Active</td>
         <td class="nowrap">
           <button class="btn btn-secondary btn-xs" data-action="view">View</button>
           <button class="btn btn-danger btn-xs" data-action="delete">Delete</button>
         </td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
+  }
+
+  async function deleteStudent(uid) {
+    const s = STUDENTS.find((st) => st.uid === uid);
+    const label =
+      s?.name || s?.email || s?.id || uid;
+
+    const ok = confirm(
+      `Delete student "${label}"?\nThis will remove their grades, subjects taken, section memberships, and message thread.`
+    );
+    if (!ok) return;
+
+    try {
+      // 1) delete grades
+      await deleteSubcollection(["users", uid, "grades"]);
+
+      // 2) delete subjectsTaken
+      await deleteSubcollection(["users", uid, "subjectsTaken"]);
+
+      // 3) remove from all sections/members
+      const cg = await getDocs(
+        query(
+          collectionGroup(db, "members"),
+          where("studentUid", "==", uid)
+        )
+      );
+      await Promise.all(cg.docs.map((d) => deleteDoc(d.ref)));
+
+      // 4) delete message thread (threads/{uid} + messages)
+      await deleteSubcollection(["threads", uid, "messages"]).catch(
+        () => {}
+      );
+      await deleteDoc(doc(db, "threads", uid)).catch(() => {});
+
+      // 5) delete user doc
+      await deleteDoc(doc(db, "users", uid));
+
+      alert("Student deleted successfully.");
+    } catch (err) {
+      console.error("[deleteStudent] error:", err);
+      alert(
+        "Failed to delete student. Check Firestore rules / permissions."
+      );
+    }
   }
 
   studentsFilterYear?.addEventListener("change", renderStudents);
   studentsSearch?.addEventListener("input", renderStudents);
   studentsSort?.addEventListener("change", renderStudents);
 
-  studentsTableBody?.addEventListener("click", async (e) => {
+  studentsTableBody?.addEventListener("click", (e) => {
     const row = e.target.closest("tr");
     if (!row) return;
     const uid = row.dataset.uid;
-    const s = STUDENTS.find(x => x.uid === uid);
+    const s = STUDENTS.find((x) => x.uid === uid);
     if (!s) return;
 
-    const viewBtn = e.target.closest("button[data-action='view']");
-    const nameCell = e.target.closest("td.linkable");
-    const delBtn  = e.target.closest("button[data-action='delete']");
-
-    if (viewBtn || nameCell) {
+    if (
+      e.target.closest("button[data-action='view']") ||
+      e.target.closest("td.linkable")
+    ) {
       openStudentDetail(s);
       return;
     }
 
-    if (delBtn) {
-      await confirmRun(
-        `Delete student "${s.name || s.email || s.id}"?\nThis will remove their grades and section memberships.`,
-        async () => {
-          try {
-            await deleteStudent(uid);
-            await Promise.all([loadStudents(), loadSections()]);
-            await loadStudentAverages();
-            alert("Student deleted.");
-          } catch (err) {
-            console.error("delete student failed:", err);
-            alert("Failed to delete student. Check rules/permissions.");
-          }
-        }
-      );
+    if (e.target.closest("button[data-action='delete']")) {
+      deleteStudent(uid).catch(console.error);
+      return;
     }
   });
 
-  /* ============== STUDENT DETAIL + GRADES ============== */
+  /* ================= STUDENT DETAIL ================= */
   const stName = document.getElementById("stName");
-  const stId   = document.getElementById("stId");
+  const stId = document.getElementById("stId");
   const sogTableBody = document.getElementById("sogTableBody");
-  const addSoGBtn = document.getElementById("addSoGBtn");
   const exportSoGBtn = document.getElementById("exportSoGBtn");
   const filterYear = document.getElementById("filterYear");
-  const filterSem  = document.getElementById("filterSem");
+  const filterSem = document.getElementById("filterSem");
+  const backToStudentsLink = document.getElementById(
+    "backToStudentsLink"
+  );
 
-  const addSoGModal = document.getElementById("addSoGModal");
-  const closeAddSoG = document.getElementById("closeAddSoG");
-  const cancelAddSoG = document.getElementById("cancelAddSoG");
-  const addSoGForm = document.getElementById("addSoGForm");
+  const stTabButtons = document.querySelectorAll("[data-st-tab]");
+  const studentTabGrades = document.getElementById(
+    "studentTabGrades"
+  );
+  const studentTabSubjects = document.getElementById(
+    "studentTabSubjects"
+  );
+  const stSubjectsYear = document.getElementById("stSubjectsYear");
+  const stSubjectsSem = document.getElementById("stSubjectsSem");
+  const stSubjectsBody = document.getElementById("stSubjectsBody");
+
+  stTabButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const target = btn.dataset.stTab;
+      stTabButtons.forEach((b) =>
+        b.classList.toggle("active", b === btn)
+      );
+      if (studentTabGrades)
+        studentTabGrades.style.display =
+          target === "grades" ? "" : "none";
+      if (studentTabSubjects)
+        studentTabSubjects.style.display =
+          target === "subjects" ? "" : "none";
+    });
+  });
+
+  backToStudentsLink?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showPage("students");
+  });
 
   function openStudentDetail(s) {
     CURRENT_STUDENT = s;
     stName.textContent = s.name || "—";
-    stId.textContent   = s.id || "—";
+    stId.textContent = s.id || "—";
+
     if (filterYear) filterYear.value = "__ALL__";
-    if (filterSem)  filterSem.value  = "__ALL__";
+    if (filterSem) filterSem.value = "__ALL__";
+    if (stSubjectsYear) stSubjectsYear.value = "__ALL__";
+    if (stSubjectsSem) stSubjectsSem.value = "__ALL__";
+
+    stTabButtons.forEach((b) => {
+      const isGrades = b.dataset.stTab === "grades";
+      b.classList.toggle("active", isGrades);
+    });
+    if (studentTabGrades) studentTabGrades.style.display = "";
+    if (studentTabSubjects) studentTabSubjects.style.display = "none";
+
     renderStudentSummary().catch(console.error);
+    loadStudentSubjects().catch(console.error);
+
     showPage("student-detail");
   }
 
   async function fetchAllGrades(uid) {
-    const snap = await getDocs(collection(db, "users", uid, "grades"));
-    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const snap = await getDocs(
+      collection(db, "users", uid, "grades")
+    );
+    const rows = snap.docs.map((d) => ({
+      id: d.id,
+      ...d.data()
+    }));
     rows.sort((a, b) => {
-      const ya = String(a.yearLevel || ""); const yb = String(b.yearLevel || "");
+      const ya = String(a.yearLevel || "");
+      const yb = String(b.yearLevel || "");
       if (ya !== yb) return ya.localeCompare(yb);
-      const sa = String(a.semester || ""); const sb = String(b.semester || "");
+      const sa = String(a.semester || "");
+      const sb = String(b.semester || "");
       return sa.localeCompare(sb);
     });
     return rows;
@@ -444,18 +767,29 @@ function initDashboard() {
 
   async function renderStudentSummary() {
     if (!CURRENT_STUDENT) {
-      sogTableBody.innerHTML = '<tr><td colspan="7">No summary entries yet.</td></tr>'; 
+      sogTableBody.innerHTML =
+        '<tr><td colspan="6">No grades yet.</td></tr>';
       return;
     }
+
     try {
       const all = await fetchAllGrades(CURRENT_STUDENT.uid);
+      const yearFilterKey =
+        !filterYear || filterYear.value === "__ALL__"
+          ? "__ALL__"
+          : yearKey(filterYear.value);
+      const semFilterKey =
+        !filterSem || filterSem.value === "__ALL__"
+          ? "__ALL__"
+          : semKey(filterSem.value);
 
-      const yearFilterKey = (!filterYear || filterYear.value === "__ALL__") ? "__ALL__" : yearKey(filterYear.value);
-      const semFilterKey  = (!filterSem  || filterSem.value  === "__ALL__") ? "__ALL__" : semKey(filterSem.value);
-
-      const entries = all.filter(ent => {
-        const okYear = yearFilterKey === "__ALL__" || String(ent.yearLevel) === yearFilterKey;
-        const okSem  = semFilterKey  === "__ALL__" || String(ent.semester)  === semFilterKey;
+      const entries = all.filter((ent) => {
+        const okYear =
+          yearFilterKey === "__ALL__" ||
+          String(ent.yearLevel) === yearFilterKey;
+        const okSem =
+          semFilterKey === "__ALL__" ||
+          String(ent.semester) === semFilterKey;
         return okYear && okSem;
       });
 
@@ -466,168 +800,213 @@ function initDashboard() {
         const y = String(ent.yearLevel ?? "").trim();
         const s = String(ent.semester ?? "").trim();
         const key = `Y${y}-${s}`;
-        if (!groups[key]) groups[key] = { sum: 0, count: 0, year: y, sem: s };
-        groups[key].sum += n; groups[key].count += 1;
+        if (!groups[key])
+          groups[key] = { sum: 0, count: 0, year: y, sem: s };
+        groups[key].sum += n;
+        groups[key].count += 1;
       }
-      const semAvgBar = document.getElementById("semAvgBar");
-      if (semAvgBar) {
+
+      const bar = document.getElementById("semAvgBar");
+      if (bar) {
         const items = Object.values(groups)
-          .sort((a,b) => (String(a.year).localeCompare(String(b.year)) || String(a.sem).localeCompare(String(b.sem))))
-          .map(g => {
-            const avg = (g.sum / g.count).toFixed(2);
-            return `<span class="tag" style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:12px;background:#eef;">Y${escapeHTML(g.year)} ${escapeHTML(g.sem)}: <b>${avg}</b></span>`;
-          });
-        semAvgBar.innerHTML = items.length ? items.join("") : `<span>—</span>`;
+          .sort(
+            (a, b) =>
+              String(a.year).localeCompare(String(b.year)) ||
+              String(a.sem).localeCompare(String(b.sem))
+          )
+          .map(
+            (g) =>
+              `<span class="tag" style="display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:12px;background:#eef;">
+                Y${escapeHTML(g.year)} ${escapeHTML(
+                g.sem
+              )}: <b>${(g.sum / g.count).toFixed(2)}</b>
+               </span>`
+          );
+        bar.innerHTML = items.length ? items.join("") : `<span>—</span>`;
       }
 
       if (!entries.length) {
-        sogTableBody.innerHTML = '<tr><td colspan="7">No summary entries yet.</td></tr>';
+        sogTableBody.innerHTML =
+          '<tr><td colspan="6">No grades yet.</td></tr>';
         return;
       }
-      sogTableBody.innerHTML = entries.map(ent => `
-        <tr data-id="${ent.id}">
+
+      sogTableBody.innerHTML = entries
+        .map(
+          (ent) => `
+        <tr>
           <td>${escapeHTML(ent.yearLevel ?? "")}</td>
           <td>${escapeHTML(ent.semester ?? "")}</td>
           <td>${escapeHTML(ent.courseName || ent.title || "—")}</td>
           <td>${escapeHTML(ent.courseCode || ent.code || "—")}</td>
           <td>${Number(ent.units ?? 0)}</td>
           <td>${escapeHTML(ent.grade ?? ent.mark ?? "—")}</td>
-          <td class="nowrap">
-            <button class="btn btn-secondary btn-xs" data-action="edit-grade">Edit</button>
-            <button class="btn btn-danger btn-xs" data-action="delete-grade">Delete</button>
-          </td>
         </tr>
-      `).join("");
+      `
+        )
+        .join("");
     } catch (err) {
       console.error("fetch/render grades failed:", err);
-      sogTableBody.innerHTML = '<tr><td colspan="7">Failed to load grades.</td></tr>';
+      sogTableBody.innerHTML =
+        '<tr><td colspan="6">Failed to load grades.</td></tr>';
     }
   }
-  filterYear?.addEventListener("change", () => renderStudentSummary().catch(console.error));
-  filterSem?.addEventListener("change", () => renderStudentSummary().catch(console.error));
 
-  sogTableBody?.addEventListener('click', async (e) => {
-    const row = e.target.closest('tr');
-    if (!row || !CURRENT_STUDENT) return;
-    const gid = row.getAttribute('data-id');
-
-    if (e.target.closest("button[data-action='edit-grade']")) {
-      const tds = row.querySelectorAll('td');
-      document.getElementById('sogYear').value = tds[0].textContent.trim();
-      document.getElementById('sogSem').value = tds[1].textContent.trim();
-      document.getElementById('sogCourseName').value = tds[2].textContent.trim();
-      document.getElementById('sogCourseCode').value = tds[3].textContent.trim();
-      document.getElementById('sogUnits').value = tds[4].textContent.trim();
-      document.getElementById('sogMark').value = tds[5].textContent.trim();
-      addSoGForm.dataset.mode = 'edit';
-      addSoGForm.dataset.docId = gid;
-      addSoGModal?.classList.add('show');
-      addSoGModal?.setAttribute('aria-hidden','false');
-      document.body.classList.add('modal-open');
-      return;
-    }
-    if (e.target.closest("button[data-action='delete-grade']")) {
-      await confirmRun('Delete this grade entry?', async () => {
-        await deleteDoc(doc(db, 'users', CURRENT_STUDENT.uid, 'grades', gid));
-        await renderStudentSummary();
-        await loadStudentAverages();
-        alert('Grade deleted.');
-      });
-    }
-  });
-
-  function openAddSoGModal() {
-    if (!CURRENT_STUDENT) { alert("Open a student first."); return; }
-    addSoGForm?.reset();
-    addSoGForm.dataset.mode = 'create';
-    addSoGForm.dataset.docId = '';
-    const fy = filterYear?.value, fs = filterSem?.value;
-    if (fy && fy !== "__ALL__") document.getElementById("sogYear").value = fy;
-    if (fs && fs !== "__ALL__") document.getElementById("sogSem").value  = fs;
-    addSoGModal?.classList.add("show");
-    addSoGModal?.setAttribute("aria-hidden","false");
-    document.body.classList.add("modal-open");
-  }
-  function closeAddSoGModal() {
-    addSoGModal?.classList.remove("show");
-    addSoGModal?.setAttribute("aria-hidden","true");
-    document.body.classList.remove("modal-open");
-  }
-  addSoGBtn?.addEventListener("click", openAddSoGModal);
-  closeAddSoG?.addEventListener("click", closeAddSoGModal);
-  cancelAddSoG?.addEventListener("click", closeAddSoGModal);
-
-  addSoGForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!CURRENT_STUDENT) return;
-    const yearLevel = yearKey(document.getElementById("sogYear").value.trim());
-    const semester  = semKey(document.getElementById("sogSem").value.trim());
-    const courseName = document.getElementById("sogCourseName").value.trim();
-    const courseCode = document.getElementById("sogCourseCode").value.trim();
-    const units = Number(document.getElementById("sogUnits").value.trim() || "0");
-    const grade  = document.getElementById("sogMark").value.trim();
+  async function loadStudentSubjects() {
+    if (!CURRENT_STUDENT || !stSubjectsBody) return;
 
     try {
-      const mode = addSoGForm.dataset.mode || 'create';
-      if (mode === 'edit') {
-        const gid = addSoGForm.dataset.docId;
-        await updateDoc(doc(db, 'users', CURRENT_STUDENT.uid, 'grades', gid), {
-          yearLevel, semester, courseName, courseCode, units, grade,
-        });
-      } else {
-        await addDoc(collection(db, "users", CURRENT_STUDENT.uid, "grades"), {
-          yearLevel, semester, courseName, courseCode, units, grade,
-          createdAt: serverTimestamp(),
-        });
+      const yearVal = stSubjectsYear?.value || "__ALL__";
+      const semVal = stSubjectsSem?.value || "__ALL__";
+
+      const baseRef = collection(
+        db,
+        "users",
+        CURRENT_STUDENT.uid,
+        "subjectsTaken"
+      );
+      const clauses = [];
+      if (yearVal !== "__ALL__")
+        clauses.push(where("year", "==", yearVal));
+      if (semVal !== "__ALL__")
+        clauses.push(where("sem", "==", semVal));
+
+      const qRef = clauses.length ? query(baseRef, ...clauses) : baseRef;
+      const snap = await getDocs(qRef);
+
+      if (snap.empty) {
+        stSubjectsBody.innerHTML =
+          `<tr><td colspan="5">No subjects found for selected filters.</td></tr>`;
+        return;
       }
-      closeAddSoGModal();
-      await renderStudentSummary();
-      await loadStudentAverages();
-      alert(mode === 'edit' ? 'Entry updated.' : 'Summary entry added.');
+
+      stSubjectsBody.innerHTML = snap.docs
+        .map((docSnap) => {
+          const d = docSnap.data();
+          return `
+          <tr>
+            <td>${escapeHTML(d.courseName || "")}</td>
+            <td>${escapeHTML(d.courseCode || "")}</td>
+            <td>${d.units ?? ""}</td>
+            <td>${escapeHTML(d.year || "")}</td>
+            <td>${escapeHTML(d.sem || "")}</td>
+          </tr>
+        `;
+        })
+        .join("");
     } catch (err) {
-      console.error("save SoG failed:", err);
-      alert("Failed to save entry.");
+      console.error("loadStudentSubjects failed:", err);
+      stSubjectsBody.innerHTML =
+        `<tr><td colspan="5">Failed to load subjects.</td></tr>`;
     }
+  }
+
+  stSubjectsYear?.addEventListener("change", () => {
+    loadStudentSubjects().catch(console.error);
+  });
+  stSubjectsSem?.addEventListener("change", () => {
+    loadStudentSubjects().catch(console.error);
+  });
+
+  filterYear?.addEventListener("change", () => {
+    renderStudentSummary().catch(console.error);
+  });
+  filterSem?.addEventListener("change", () => {
+    renderStudentSummary().catch(console.error);
   });
 
   exportSoGBtn?.addEventListener("click", () => {
     const table = document.querySelector("#student-detail table");
     if (!table) return;
-    const csv = [...table.querySelectorAll("tr")].map(tr =>
-      [...tr.querySelectorAll("th,td")].map(td => {
-        const txt = td.textContent.replace(/\s+/g,' ').trim();
-        return /[",\n]/.test(txt) ? `"${txt.replace(/"/g,'""')}"` : txt;
-      }).join(",")
-    ).join("\n");
-    const yr = (filterYear?.value === "__ALL__" ? "ALL" : filterYear?.value?.replace(/\s+/g,'')) || "ALL";
-    const sm = (filterSem?.value  === "__ALL__" ? "ALL" : filterSem?.value?.replace(/\s+/g,'')) || "ALL";
+
+    const csv = [...table.querySelectorAll("tr")]
+      .map((tr) =>
+        [...tr.querySelectorAll("th,td")]
+          .map((td) => {
+            const txt = td.textContent.replace(/\s+/g, " ").trim();
+            return /[",\n]/.test(txt)
+              ? `"${txt.replace(/"/g, '""')}"`
+              : txt;
+          })
+          .join(",")
+      )
+      .join("\n");
+
+    const yr =
+      (filterYear?.value === "__ALL__"
+        ? "ALL"
+        : filterYear?.value?.replace(/\s+/g, "")) || "ALL";
+    const sm =
+      (filterSem?.value === "__ALL__"
+        ? "ALL"
+        : filterSem?.value?.replace(/\s+/g, "")) || "ALL";
     const id = stId?.textContent || "student";
-    downloadFile(`${id}_summary_${yr}_${sm}.csv`, csv);
+    downloadFile(`${id}_grades_${yr}_${sm}.csv`, csv);
   });
 
-  /* ============== SECTIONS & MEMBERS ============== */
-  const sectionsTableBody = document.getElementById("sectionsTableBody");
-  const addSectionBtn = document.getElementById("addSectionBtn");
-  const exportSectionsBtn = document.getElementById("exportSectionsBtn");
+  function downloadFile(
+    filename,
+    text,
+    mimetype = "text/csv;charset=utf-8"
+  ) {
+    const blob = new Blob([text], { type: mimetype });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      URL.revokeObjectURL(url);
+      a.remove();
+    }, 0);
+  }
 
-  const addSectionModal = document.getElementById("addSectionModal");
+  /* ================= SECTIONS ================= */
+  const sectionsTableBody = document.getElementById(
+    "sectionsTableBody"
+  );
+  const addSectionBtn = document.getElementById("addSectionBtn");
+  const exportSectionsBtn = document.getElementById(
+    "exportSectionsBtn"
+  );
+  const addSectionModal = document.getElementById(
+    "addSectionModal"
+  );
   const addSectionForm = document.getElementById("addSectionForm");
-  const closeAddSection = document.getElementById("closeAddSection");
-  const cancelAddSection = document.getElementById("cancelAddSection");
+  const closeAddSection = document.getElementById(
+    "closeAddSection"
+  );
+  const cancelAddSection = document.getElementById(
+    "cancelAddSection"
+  );
 
   const sdTitle = document.getElementById("sdTitle");
   const sdCourse = document.getElementById("sdCourse");
   const sdSection = document.getElementById("sdSection");
   const sdYear = document.getElementById("sdYear");
-  const sectionMembersBody = document.getElementById("sectionMembersBody");
+  const sectionMembersBody = document.getElementById(
+    "sectionMembersBody"
+  );
 
   const addMemberBtn = document.getElementById("addMemberBtn");
-  const exportSectionMembersBtn = document.getElementById("exportSectionMembersBtn");
+  const exportSectionMembersBtn = document.getElementById(
+    "exportSectionMembersBtn"
+  );
+  const backToSectionsLink = document.getElementById(
+    "backToSectionsLink"
+  );
 
-  const addMemberModal = document.getElementById("addMemberModal");
+  const addMemberModal = document.getElementById(
+    "addMemberModal"
+  );
   const addMemberForm = document.getElementById("addMemberForm");
-  const closeAddMember = document.getElementById("closeAddMember");
-  const cancelAddMember = document.getElementById("cancelAddMember");
+  const closeAddMember = document.getElementById(
+    "closeAddMember"
+  );
+  const cancelAddMember = document.getElementById(
+    "cancelAddMember"
+  );
 
   const memberSelect = document.getElementById("memberSelect");
   const memberId = document.getElementById("memberId");
@@ -635,27 +1014,32 @@ function initDashboard() {
   const memberEmail = document.getElementById("memberEmail");
   const memberYear = document.getElementById("memberYear");
 
-  // per-member grade modal
-  const addMemberGradeModal = document.getElementById("addMemberGradeModal");
-  const addMemberGradeForm = document.getElementById("addMemberGradeForm");
-  const amgClose = document.getElementById("amgClose");
-  const amgCancel = document.getElementById("amgCancel");
-  const amgStudentName = document.getElementById("amgStudentName");
+  backToSectionsLink?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showPage("sections");
+  });
+
+  async function ensureSectionsLoaded() {
+    if (SECTIONS.length) return;
+    await loadSections();
+  }
 
   async function loadSections() {
     const snap = await getDocs(collection(db, "sections"));
-    const base = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const base = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-    const withCounts = await Promise.all(base.map(async s => {
-      try {
-        const qMembers = query(collection(db, "sections", s.id, "members"));
-        const res = await getCountFromServer(qMembers);
-        const cnt = res.data().count || 0;
-        return { ...s, memberCount: cnt };
-      } catch {
-        return { ...s, memberCount: 0 };
-      }
-    }));
+    const withCounts = await Promise.all(
+      base.map(async (s) => {
+        try {
+          const res = await getCountFromServer(
+            collection(db, "sections", s.id, "members")
+          );
+          return { ...s, memberCount: res.data().count || 0 };
+        } catch {
+          return { ...s, memberCount: 0 };
+        }
+      })
+    );
 
     SECTIONS = withCounts;
     renderSections();
@@ -663,61 +1047,79 @@ function initDashboard() {
 
   function renderSections() {
     if (!SECTIONS.length) {
-      sectionsTableBody.innerHTML = `<tr><td colspan="6">No sections yet.</td></tr>`;
+      sectionsTableBody.innerHTML =
+        `<tr><td colspan="5">No sections yet.</td></tr>`;
       return;
     }
-    sectionsTableBody.innerHTML = SECTIONS.map(s => `
+
+    sectionsTableBody.innerHTML = SECTIONS
+      .map(
+        (s) => `
       <tr data-id="${s.id}">
         <td>${escapeHTML(s.course || "—")}</td>
         <td>${escapeHTML(s.name || "—")}</td>
         <td>${escapeHTML(prettyYear(s.year))}</td>
         <td>${Number(s.memberCount ?? 0)}</td>
-        <td>${escapeHTML(s.notes || "—")}</td>
         <td class="nowrap">
           <button class="btn btn-secondary btn-xs" data-action="open">Open</button>
           <button class="btn btn-danger btn-xs" data-action="delete">Delete</button>
         </td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
   }
 
   sectionsTableBody?.addEventListener("click", async (e) => {
     const row = e.target.closest("tr");
-    const openBtn = e.target.closest("button[data-action='open']");
-    const delBtn  = e.target.closest("button[data-action='delete']");
     if (!row) return;
-
     const id = row.getAttribute("data-id");
-    const sec = SECTIONS.find(x => x.id === id);
+    const sec = SECTIONS.find((x) => x.id === id);
     if (!sec) return;
 
-    if (openBtn) {
+    if (e.target.closest("button[data-action='open']")) {
       await openSectionDetail(sec);
       return;
     }
 
-    if (delBtn) {
-      await confirmRun(
-        `Delete section "${sec.course || "—"} • ${sec.name || "—"}"?\nAll its member records will also be removed (students remain intact).`,
-        async () => {
-          try {
-            const deletingCurrent = CURRENT_SECTION?.id === sec.id;
-            await deleteSection(sec.id);
-            await loadSections();
-            if (deletingCurrent) showPage("sections");
-            alert("Section deleted.");
-          } catch (err) {
-            console.error("delete section failed:", err);
-            alert("Failed to delete section. Check rules/permissions.");
-          }
-        }
+    if (e.target.closest("button[data-action='delete']")) {
+      const ok = confirm(
+        `Delete section "${sec.course || "—"} • ${
+          sec.name || "—"
+        }"?\nAll its member records will also be removed (students remain intact).`
       );
+      if (!ok) return;
+
+      try {
+        await deleteSubcollection(["sections", sec.id, "members"]);
+        await deleteDoc(doc(db, "sections", sec.id));
+
+        const qx = query(
+          collection(db, "teaching"),
+          where("sectionId", "==", sec.id)
+        );
+        const snap = await getDocs(qx);
+        await Promise.all(
+          snap.docs.map((d) => deleteDoc(d.ref))
+        );
+
+        SECTIONS = [];
+        await loadSections();
+        alert("Section deleted.");
+      } catch (err) {
+        console.error("delete section failed:", err);
+        alert(
+          "Failed to delete section. Check rules/permissions."
+        );
+      }
     }
   });
 
   async function openSectionDetail(sec) {
     CURRENT_SECTION = sec;
-    sdTitle.textContent = `${sec.course || "—"} • ${sec.name || "—"}`;
+    sdTitle.textContent = `${sec.course || "—"} • ${
+      sec.name || "—"
+    }`;
     sdCourse.textContent = sec.course || "—";
     sdSection.textContent = sec.name || "—";
     sdYear.textContent = prettyYear(sec.year || "—");
@@ -727,221 +1129,516 @@ function initDashboard() {
 
   async function loadSectionMembers() {
     if (!CURRENT_SECTION) return;
-    const qs = await getDocs(collection(db, "sections", CURRENT_SECTION.id, "members"));
-    SECTION_MEMBERS = qs.docs.map(d => ({ id: d.id, ...d.data() }));
+    const qs = await getDocs(
+      collection(db, "sections", CURRENT_SECTION.id, "members")
+    );
+    SECTION_MEMBERS = qs.docs.map((d) => ({
+      id: d.id,
+      ...d.data()
+    }));
     renderMembers(SECTION_MEMBERS);
   }
 
   function renderMembers(rows) {
-    if (!sectionMembersBody) return;
     if (!rows.length) {
-      sectionMembersBody.innerHTML = `<tr><td colspan="5">No members yet.</td></tr>`;
+      sectionMembersBody.innerHTML =
+        `<tr><td colspan="5">No members yet.</td></tr>`;
       return;
     }
-    sectionMembersBody.innerHTML = rows.map(m => `
-      <tr data-doc="${escapeHTML(m.id)}" data-uid="${escapeHTML(m.studentUid || "")}" data-name="${escapeHTML(m.name || "")}" data-id="${escapeHTML(m.studentId || "")}" data-email="${escapeHTML(m.email || "")}" data-year="${escapeHTML(yearKey(m.year || ""))}">
+
+    sectionMembersBody.innerHTML = rows
+      .map(
+        (m) => `
+      <tr
+        data-doc="${escapeHTML(m.id)}"
+        data-uid="${escapeHTML(m.studentUid || "")}"
+        data-name="${escapeHTML(m.name || "")}"
+        data-id="${escapeHTML(m.studentId || "")}"
+        data-email="${escapeHTML(m.email || "")}"
+        data-year="${escapeHTML(yearKey(m.year || ""))}">
         <td>${escapeHTML(m.studentId || "—")}</td>
         <td>${escapeHTML(m.name || "—")}</td>
         <td>${escapeHTML(m.email || "—")}</td>
         <td>${escapeHTML(prettyYear(m.year || ""))}</td>
         <td class="nowrap">
           <button class="btn btn-secondary btn-xs" data-action="view-student">View</button>
-          <button class="btn btn-primary btn-xs" data-action="add-grade">Add Grade</button>
           <button class="btn btn-danger btn-xs" data-action="remove-member">Remove</button>
         </td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
   }
 
   sectionMembersBody?.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button[data-action]");
     const row = e.target.closest("tr");
-    if (!btn || !row) return;
-
+    if (!row) return;
     const uid = row.getAttribute("data-uid");
-    const name = row.getAttribute("data-name") || "Student";
-    const sid  = row.getAttribute("data-id") || "";
-    const email= row.getAttribute("data-email") || "";
-    const year = row.getAttribute("data-year") || "";
+    const s = STUDENTS.find((x) => x.uid === uid);
 
-    if (btn.dataset.action === "view-student") {
-      const s = STUDENTS.find(x => x.uid === uid) || { uid, name, id: sid, email, year };
-      openStudentDetail(s);
+    if (e.target.closest("button[data-action='view-student']")) {
+      openStudentDetail(s || { uid });
       return;
     }
-    if (btn.dataset.action === "add-grade") {
-      CURRENT_MEMBER_FOR_GRADE = { uid, name, id: sid, email, year };
-      openAddMemberGradeModal();
-      return;
-    }
-    if (btn.dataset.action === "remove-member") {
+
+    if (e.target.closest("button[data-action='remove-member']")) {
       if (!CURRENT_SECTION) return;
-      const memberDocId = row.getAttribute("data-doc");
-      const ok = confirm(`Remove ${name} (${sid}) from section?`);
-      if (!ok) return;
+      if (!confirm("Remove this student from the section?"))
+        return;
+
       try {
-        await deleteDoc(doc(db, 'sections', CURRENT_SECTION.id, 'members', memberDocId));
+        await deleteDoc(
+          doc(
+            db,
+            "sections",
+            CURRENT_SECTION.id,
+            "members",
+            row.getAttribute("data-doc")
+          )
+        );
         await loadSectionMembers();
+        SECTIONS = [];
         await loadSections();
-        alert('Member removed.');
+        alert("Member removed.");
       } catch (err) {
-        console.error('remove member failed:', err);
-        alert('Failed to remove member. Check permissions.');
+        console.error(err);
+        alert("Failed to remove member.");
       }
-      return;
     }
   });
 
   function openAddSectionModal() {
     addSectionForm?.reset();
     addSectionModal?.classList.add("show");
-    addSectionModal?.setAttribute("aria-hidden","false");
+    addSectionModal?.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
   }
+
   function closeAddSectionModal() {
     addSectionModal?.classList.remove("show");
-    addSectionModal?.setAttribute("aria-hidden","true");
+    addSectionModal?.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
   }
+
   addSectionBtn?.addEventListener("click", openAddSectionModal);
   closeAddSection?.addEventListener("click", closeAddSectionModal);
-  cancelAddSection?.addEventListener("click", closeAddSectionModal);
+  cancelAddSection?.addEventListener(
+    "click",
+    closeAddSectionModal
+  );
 
   addSectionForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const course = document.getElementById("sectionCourse")?.value.trim();
-    const name = document.getElementById("sectionName")?.value.trim();
-    const yearLabel = document.getElementById("sectionYear")?.value.trim();
+    const course = document
+      .getElementById("sectionCourse")
+      ?.value.trim();
+    const name = document
+      .getElementById("sectionName")
+      ?.value.trim();
+    const yearLabel = document
+      .getElementById("sectionYear")
+      ?.value.trim();
     const year = yearKey(yearLabel);
-    const notes = document.getElementById("sectionNotes")?.value.trim();
+    const notes = document
+      .getElementById("sectionNotes")
+      ?.value.trim();
+
     try {
-      const sref = await addDoc(collection(db, "sections"), { course, name, year, notes, createdAt: serverTimestamp() });
+      await addDoc(collection(db, "sections"), {
+        course,
+        name,
+        year,
+        notes,
+        createdAt: serverTimestamp()
+      });
       closeAddSectionModal();
+      SECTIONS = [];
       await loadSections();
-      const sec = { id: sref.id, course, name, year, notes };
-      await openSectionDetail(sec);
       alert("Section saved.");
     } catch (err) {
-      console.error("add section failed:", err);
-      alert("Failed to add section. Check rules/permissions.");
+      console.error(err);
+      alert("Failed to add section.");
     }
   });
 
   function openAddMemberModal() {
-    if (!CURRENT_SECTION) { alert("Open a section first."); return; }
+    if (!CURRENT_SECTION) {
+      alert("Open a section first.");
+      return;
+    }
     addMemberForm?.reset();
     refreshMemberSelect();
     addMemberModal?.classList.add("show");
-    addMemberModal?.setAttribute("aria-hidden","false");
+    addMemberModal?.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
   }
+
   function closeAddMemberModal() {
     addMemberModal?.classList.remove("show");
-    addMemberModal?.setAttribute("aria-hidden","true");
+    addMemberModal?.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
   }
+
   addMemberBtn?.addEventListener("click", openAddMemberModal);
   closeAddMember?.addEventListener("click", closeAddMemberModal);
-  cancelAddMember?.addEventListener("click", closeAddMemberModal);
+  cancelAddMember?.addEventListener(
+    "click",
+    closeAddMemberModal
+  );
 
   function refreshMemberSelect() {
     if (!memberSelect) return;
-    const opts = ['<option value="">— Select from Students —</option>']
-      .concat(STUDENTS.map(s => `<option value="${s.uid}" data-id="${escapeHTML(s.id)}" data-name="${escapeHTML(s.name)}" data-email="${escapeHTML(s.email)}" data-year="${escapeHTML(s.year)}">${escapeHTML(s.name)} (${escapeHTML(s.id || "—")})</option>`));
+    const opts = [
+      '<option value="">— Select from Students —</option>'
+    ].concat(
+      STUDENTS.map(
+        (s) =>
+          `<option value="${s.uid}"
+              data-id="${escapeHTML(s.id)}"
+              data-name="${escapeHTML(s.name)}"
+              data-email="${escapeHTML(s.email)}"
+              data-year="${escapeHTML(s.year)}">
+              ${escapeHTML(s.name)} (${escapeHTML(s.id || "—")})
+           </option>`
+      )
+    );
     memberSelect.innerHTML = opts.join("");
   }
+
   memberSelect?.addEventListener("change", (e) => {
     const opt = e.target.selectedOptions?.[0];
     if (!opt) return;
     memberId.value = opt.getAttribute("data-id") || "";
     memberName.value = opt.getAttribute("data-name") || "";
     memberEmail.value = opt.getAttribute("data-email") || "";
-    memberYear.value = prettyYear(opt.getAttribute("data-year") || "");
+    memberYear.value = prettyYear(
+      opt.getAttribute("data-year") || ""
+    );
   });
 
-  function openAddMemberGradeModal() {
-    addMemberGradeForm?.reset();
-    if (amgStudentName) amgStudentName.textContent = (CURRENT_MEMBER_FOR_GRADE?.name || "Student");
-    const yr = document.getElementById("amgYear");
-    if (yr && CURRENT_MEMBER_FOR_GRADE?.year) yr.value = prettyYear(CURRENT_MEMBER_FOR_GRADE.year);
-    addMemberGradeModal?.classList.add("show");
-    addMemberGradeModal?.setAttribute("aria-hidden","false");
-    document.body.classList.add("modal-open");
-  }
-  function closeAddMemberGradeModal() {
-    addMemberGradeModal?.classList.remove("show");
-    addMemberGradeModal?.setAttribute("aria-hidden","true");
-    document.body.classList.remove("modal-open");
-  }
-  amgClose?.addEventListener("click", closeAddMemberGradeModal);
-  amgCancel?.addEventListener("click", closeAddMemberGradeModal);
-
-  addMemberGradeForm?.addEventListener("submit", async (e) => {
+  // IMPORTANT: doc ID in members = studentUid (matches rules & teacherTeachesStudent)
+  addMemberForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!CURRENT_MEMBER_FOR_GRADE?.uid) { alert("Missing member."); return; }
+    if (!CURRENT_SECTION) return;
 
-    const yearLabel = document.getElementById("amgYear")?.value?.trim();
-    const semLabel  = document.getElementById("amgSem")?.value?.trim();
-    const courseName= document.getElementById("amgCourseName")?.value?.trim();
-    const courseCode= document.getElementById("amgCourseCode")?.value?.trim();
-    const units     = Number(document.getElementById("amgUnits")?.value?.trim() || "0");
-    const grade     = document.getElementById("amgMark")?.value?.trim();
+    let uid = memberSelect.value || "";
+    let name = memberName.value?.trim() || "";
+    let email = memberEmail.value?.trim() || "";
+    let sid = memberId.value?.trim() || "";
+    let yearLabel = memberYear.value?.trim() || "";
+    const yr = yearKey(yearLabel);
 
-    const yearLevel = yearKey(yearLabel);
-    const semester  = semKey(semLabel);
+    try {
+      // If no existing student selected, quick add
+      if (!uid) {
+        if (!name || !email || !sid || !yr) {
+          alert(
+            "Please select a student or complete quick-add fields."
+          );
+          return;
+        }
 
-    if (!yearLevel || !semester || !courseName || !courseCode) {
-      alert("Please complete the form.");
+        const uref = doc(collection(db, "users"));
+        uid = uref.id;
+
+        await setDoc(
+          uref,
+          {
+            uid,
+            role: "student",
+            name,
+            email,
+            studentId: sid,
+            year: yr,
+            createdAt: serverTimestamp()
+          },
+          { merge: true }
+        );
+      } else {
+        const s = STUDENTS.find((x) => x.uid === uid);
+        name = s?.name || name;
+        email = s?.email || email;
+        sid = s?.id || sid;
+        yearLabel = prettyYear(s?.year || yr);
+      }
+
+      // Add member doc with ID = studentUid
+      const memberRef = doc(
+        db,
+        "sections",
+        CURRENT_SECTION.id,
+        "members",
+        uid
+      );
+
+      await setDoc(
+        memberRef,
+        {
+          studentUid: uid,
+          name,
+          email,
+          studentId: sid,
+          year: yr,
+          addedAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+
+      closeAddMemberModal();
+      await loadSectionMembers();
+      SECTIONS = [];
+      await loadSections();
+      alert("Student added to section.");
+    } catch (err) {
+      console.error(err);
+      alert(
+        "Failed to add student to section. Check permissions."
+      );
+    }
+  });
+
+  /* ================= TEACHERS ================= */
+  const teachersTableBody = document.getElementById(
+    "teachersTableBody"
+  );
+  const teachersSearch = document.getElementById("teachersSearch");
+  const tdName = document.getElementById("tdName");
+  const tdEmail = document.getElementById("tdEmail");
+  const tdUid = document.getElementById("tdUid");
+  const assignSectionSelect = document.getElementById(
+    "assignSectionSelect"
+  );
+  const assignSectionBtn = document.getElementById(
+    "assignSectionBtn"
+  );
+  const teacherSectionsBody = document.getElementById(
+    "teacherSectionsBody"
+  );
+  const backToTeachersLink = document.getElementById(
+    "backToTeachersLink"
+  );
+
+  function renderTeachers() {
+    if (!teachersTableBody) return;
+    const term = (teachersSearch?.value || "")
+      .toLowerCase()
+      .trim();
+
+    let rows = TEACHERS.slice();
+    if (term) {
+      rows = rows.filter(
+        (t) =>
+          (t.name || "").toLowerCase().includes(term) ||
+          (t.email || "").toLowerCase().includes(term)
+      );
+    }
+
+    if (!rows.length) {
+      teachersTableBody.innerHTML =
+        `<tr><td colspan="4">No teachers found.</td></tr>`;
+      return;
+    }
+
+    teachersTableBody.innerHTML = rows
+      .map((t) => {
+        const assigned = TEACHING_BY_TEACHER.get(t.uid) || [];
+        const label = assigned.length
+          ? assigned.map((x) => x.label).join("; ")
+          : "—";
+
+        return `
+        <tr data-uid="${t.uid}"
+            data-name="${escapeHTML(t.name || "")}"
+            data-email="${escapeHTML(t.email || "")}">
+          <td>${escapeHTML(t.name || "—")}</td>
+          <td>${escapeHTML(t.email || "—")}</td>
+          <td>${escapeHTML(label)}</td>
+          <td class="nowrap">
+            <button class="btn btn-secondary btn-xs" data-action="open">Open</button>
+            <button class="btn btn-danger btn-xs" data-action="delete">Delete</button>
+          </td>
+        </tr>
+      `;
+      })
+      .join("");
+  }
+
+  teachersSearch?.addEventListener("input", renderTeachers);
+
+  backToTeachersLink?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showPage("teachers");
+  });
+
+  teachersTableBody?.addEventListener("click", async (e) => {
+    const row = e.target.closest("tr");
+    if (!row) return;
+    const uid = row.getAttribute("data-uid");
+    const t = TEACHERS.find((x) => x.uid === uid);
+    if (!t) return;
+
+    if (e.target.closest("button[data-action='open']")) {
+      await openTeacherDetail(t);
+      return;
+    }
+
+    if (e.target.closest("button[data-action='delete']")) {
+      if (
+        !confirm(
+          `Delete teacher "${t.name || t.email}"? This removes their profile and all section assignments.`
+        )
+      )
+        return;
+
+      try {
+        const qx = query(
+          collection(db, "teaching"),
+          where("teacherUid", "==", uid)
+        );
+        const snap = await getDocs(qx);
+        await Promise.all(
+          snap.docs.map((d) => deleteDoc(d.ref))
+        );
+        await deleteDoc(doc(db, "users", uid));
+        alert("Teacher deleted.");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to delete teacher.");
+      }
+    }
+  });
+
+  async function openTeacherDetail(t) {
+    CURRENT_TEACHER = t;
+    tdName.textContent = t.name || t.email || "—";
+    tdEmail.textContent = t.email || "—";
+    tdUid.textContent = t.uid || "—";
+
+    await loadSections();
+    await populateAssignableSections(t.uid);
+    renderTeacherDetailAssignments(t.uid);
+
+    showPage("teacher-detail");
+  }
+
+  async function populateAssignableSections(teacherUid) {
+    await ensureSectionsLoaded();
+    const assignedIds = new Set(
+      (TEACHING_BY_TEACHER.get(teacherUid) || []).map(
+        (x) => x.sectionId
+      )
+    );
+
+    assignSectionSelect.innerHTML = [
+      `<option value="">— Select Section to Assign —</option>`
+    ]
+      .concat(
+        SECTIONS.filter((s) => !assignedIds.has(s.id)).map(
+          (s) =>
+            `<option value="${s.id}">
+              ${escapeHTML(
+                `${s.course || "—"} • ${s.name || "—"} (${prettyYear(
+                  s.year
+                )})`
+              )}
+             </option>`
+        )
+      )
+      .join("");
+  }
+
+  function renderTeacherDetailAssignments(teacherUid) {
+    const list = TEACHING_BY_TEACHER.get(teacherUid) || [];
+    if (!list.length) {
+      teacherSectionsBody.innerHTML =
+        `<tr><td colspan="4">No assigned sections.</td></tr>`;
+      return;
+    }
+
+    teacherSectionsBody.innerHTML = list
+      .map(
+        (x) => `
+      <tr data-section="${escapeHTML(x.sectionId)}">
+        <td>${escapeHTML(x.course || "—")}</td>
+        <td>${escapeHTML(x.name || "—")}</td>
+        <td>${escapeHTML(prettyYear(x.year || ""))}</td>
+        <td class="nowrap">
+          <button class="btn btn-danger btn-xs" data-action="unassign">Unassign</button>
+          <button class="btn btn-secondary btn-xs" data-action="open-section">Open Section</button>
+        </td>
+      </tr>
+    `
+      )
+      .join("");
+  }
+
+  // IMPORTANT: teaching docId = teacherUid_sectionId (matches rules)
+  assignSectionBtn?.addEventListener("click", async () => {
+    if (!CURRENT_TEACHER) return;
+
+    const sectionId = assignSectionSelect.value;
+    if (!sectionId) {
+      alert("Pick a section to assign.");
       return;
     }
 
     try {
-      await addDoc(collection(db, "users", CURRENT_MEMBER_FOR_GRADE.uid, "grades"), {
-        yearLevel, semester, courseName, courseCode, units, grade, createdAt: serverTimestamp()
-      });
-      closeAddMemberGradeModal();
-      alert("Grade added.");
-      if (CURRENT_STUDENT && CURRENT_STUDENT.uid === CURRENT_MEMBER_FOR_GRADE.uid) {
-        await renderStudentSummary();
-      }
-      await loadStudentAverages();
-    } catch (err) {
-      console.error("add member grade failed:", err);
-      alert("Failed to add grade. Check rules/permissions.");
+      const assignId = `${CURRENT_TEACHER.uid}_${sectionId}`;
+      await setDoc(
+        doc(db, "teaching", assignId),
+        {
+          teacherUid: CURRENT_TEACHER.uid,
+          sectionId,
+          createdAt: serverTimestamp()
+        },
+        { merge: true }
+      );
+
+      assignSectionSelect.value = "";
+      await populateAssignableSections(CURRENT_TEACHER.uid);
+      alert("Section assigned.");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to assign section.");
     }
   });
 
-  /* ========= DELETE HELPERS ========= */
-  async function deleteSubcollection(path) {
-    const [c1, id1, c2] = path;
-    const ref = collection(db, c1, id1, c2);
-    const snap = await getDocs(ref);
-    await Promise.all(snap.docs.map(d => deleteDoc(doc(db, c1, id1, c2, d.id))));
-  }
-  async function deleteMembershipsForStudent(uid) {
-    const qy = query(collectionGroup(db, "members"), where("studentUid", "==", uid));
-    const snap = await getDocs(qy);
-    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
-  }
-  async function deleteStudent(uid) {
-    await deleteSubcollection(["users", uid, "grades"]).catch(() => {});
-    await deleteMembershipsForStudent(uid).catch(() => {});
-    await deleteDoc(doc(db, "users", uid));
-  }
-  async function deleteSection(sectionId) {
-    await deleteSubcollection(["sections", sectionId, "members"]).catch(() => {});
-    await deleteDoc(doc(db, "sections", sectionId));
-  }
-  async function deleteThread(threadId) {
-    await deleteSubcollection(["threads", threadId, "messages"]).catch(() => {});
-    await deleteDoc(doc(db, "threads", threadId));
-  }
+  teacherSectionsBody?.addEventListener("click", async (e) => {
+    const row = e.target.closest("tr");
+    if (!row || !CURRENT_TEACHER) return;
+    const sid = row.getAttribute("data-section");
 
-  /* ============== MESSAGES (Admin) + CHAT VIEW ============== */
-  const messagesTableBody = document.getElementById("messagesTableBody");
+    if (e.target.closest("button[data-action='unassign']")) {
+      if (!confirm("Unassign this section from the teacher?"))
+        return;
+
+      try {
+        const assignId = `${CURRENT_TEACHER.uid}_${sid}`;
+        await deleteDoc(doc(db, "teaching", assignId));
+        await populateAssignableSections(CURRENT_TEACHER.uid);
+        alert("Unassigned.");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to unassign.");
+      }
+      return;
+    }
+
+    if (e.target.closest("button[data-action='open-section']")) {
+      const sec = SECTIONS.find((s) => s.id === sid);
+      if (sec) openSectionDetail(sec);
+    }
+  });
+
+  /* ================= MESSAGES ================= */
+  const messagesTableBody = document.getElementById(
+    "messagesTableBody"
+  );
   const messagesSearch = document.getElementById("messagesSearch");
   const messagesShow = document.getElementById("messagesShow");
-  const backToMessagesLink = document.getElementById("backToMessagesLink");
+  const backToMessagesLink = document.getElementById(
+    "backToMessagesLink"
+  );
   const mtStudentName = document.getElementById("mtStudentName");
   const mtStudentEmail = document.getElementById("mtStudentEmail");
   const chatBox = document.getElementById("chatBox");
@@ -949,64 +1646,79 @@ function initDashboard() {
   const chatEmpty = document.getElementById("chatEmpty");
   const chatForm = document.getElementById("chatForm");
   const chatText = document.getElementById("chatText");
-  const markUnreadBtn = document.getElementById("markUnreadBtn");
-  const deleteThreadBtn = document.getElementById("deleteThreadBtn");
-
-  async function loadThreads() {
-    try {
-      const qs = await getDocs(collection(db, "threads"));
-      const rows = qs.docs.map(d => ({ id: d.id, ...d.data() }))
-        .sort((a,b) => (b?.updatedAt?.toMillis?.() ?? 0) - (a?.updatedAt?.toMillis?.() ?? 0));
-      THREADS_CACHE = rows;
-      renderThreadsTable(rows);
-    } catch (e) {
-      console.warn("[messages] loadThreads error:", e?.message || e);
-      THREADS_CACHE = [];
-      renderThreadsTable([]);
-    }
-  }
+  const markUnreadBtn = document.getElementById(
+    "markUnreadBtn"
+  );
+  const deleteThreadBtn = document.getElementById(
+    "deleteThreadBtn"
+  );
 
   function renderThreadsTable(rows) {
     if (!messagesTableBody) return;
 
-    const term = (messagesSearch?.value || "").toLowerCase().trim();
+    const term = (messagesSearch?.value || "")
+      .toLowerCase()
+      .trim();
     const show = messagesShow?.value || "all";
 
     let list = rows.slice();
-
     if (term) {
-      list = list.filter(r =>
-        (r.studentName || "").toLowerCase().includes(term) ||
-        (r.studentEmail || "").toLowerCase().includes(term)
+      list = list.filter(
+        (r) =>
+          (r.studentName || "")
+            .toLowerCase()
+            .includes(term) ||
+          (r.studentEmail || "")
+            .toLowerCase()
+            .includes(term)
       );
     }
 
     if (show === "unread") {
-      list = list.filter(r => r.lastSender === r.studentUid);
+      list = list.filter(
+        (r) => r.lastSender === r.studentUid
+      );
     }
 
     if (!list.length) {
-      messagesTableBody.innerHTML = `<tr><td colspan="4">No messages.</td></tr>`;
+      messagesTableBody.innerHTML =
+        `<tr><td colspan="4">No messages.</td></tr>`;
       return;
     }
 
-    messagesTableBody.innerHTML = list.map(r => {
-      const status = (r.lastSender === r.studentUid) ? "New" : "Seen";
-      return `
-        <tr data-id="${r.id}" data-uid="${escapeHTML(r.studentUid || "")}" data-name="${escapeHTML(r.studentName || "")}" data-email="${escapeHTML(r.studentEmail || "")}">
-          <td>${escapeHTML(r.studentName || r.studentEmail || r.studentUid || "")}</td>
+    messagesTableBody.innerHTML = list
+      .map((r) => {
+        const status =
+          r.lastSender === r.studentUid ? "New" : "Seen";
+        return `
+        <tr data-id="${r.id}"
+            data-uid="${escapeHTML(r.studentUid || "")}"
+            data-name="${escapeHTML(r.studentName || "")}"
+            data-email="${escapeHTML(r.studentEmail || "")}">
+          <td>${escapeHTML(
+            r.studentName ||
+              r.studentEmail ||
+              r.studentUid ||
+              ""
+          )}</td>
           <td>${r.updatedAt ? tsToLocal(r.updatedAt) : "—"}</td>
           <td>${status}</td>
-          <td><button class="btn btn-secondary btn-xs" data-action="open">Open</button></td>
+          <td>
+            <button class="btn btn-secondary btn-xs" data-action="open">Open</button>
+          </td>
         </tr>
       `;
-    }).join("");
+      })
+      .join("");
   }
 
-  messagesSearch?.addEventListener("input", () => renderThreadsTable(THREADS_CACHE));
-  messagesShow?.addEventListener("change", () => renderThreadsTable(THREADS_CACHE));
+  messagesSearch?.addEventListener("input", () =>
+    renderThreadsTable(THREADS_CACHE)
+  );
+  messagesShow?.addEventListener("change", () =>
+    renderThreadsTable(THREADS_CACHE)
+  );
 
-  // open thread from messages table
   messagesTableBody?.addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-action='open']");
     const row = e.target.closest("tr");
@@ -1017,12 +1729,7 @@ function initDashboard() {
     const name = row.getAttribute("data-name") || "";
     const email = row.getAttribute("data-email") || "";
 
-    try {
-      await openThread(threadId, { studentUid, name, email });
-    } catch (err) {
-      console.error("[messages] openThread error:", err);
-      alert("Failed to open thread.");
-    }
+    await openThread(threadId, { studentUid, name, email });
   });
 
   function openMessageThreadView(meta) {
@@ -1035,53 +1742,23 @@ function initDashboard() {
   backToMessagesLink?.addEventListener("click", (e) => {
     e.preventDefault();
     showPage("messages");
-    loadThreads().catch(console.error);
   });
-
-  async function markThreadMessagesSeen(threadId) {
-    try {
-      const msgsSnap = await getDocs(collection(db, "threads", threadId, "messages"));
-      const batch = [];
-      for (const d of msgsSnap.docs) {
-        const m = d.data() || {};
-        const fromStudent = (m.senderRole === "student");
-        if (fromStudent && !m.seenAt) {
-          batch.push(updateDoc(doc(db, "threads", threadId, "messages", d.id), { seenAt: serverTimestamp() }));
-        }
-      }
-      if (batch.length) await Promise.all(batch);
-    } catch (e) {
-      console.warn("[messages] markThreadMessagesSeen error:", e?.message || e);
-    }
-  }
 
   async function openThread(threadId, meta) {
     CURRENT_THREAD_ID = threadId;
-
-    // If "New", decrement badge once when opening
-    try {
-      const row = THREADS_CACHE.find(r => r.id === threadId);
-      if (row && row.lastSender === row.studentUid) {
-        setNotif(notifCount - 1);
-      }
-    } catch {}
-
     openMessageThreadView(meta);
 
-    // Mark read
     try {
       await updateDoc(doc(db, "threads", threadId), {
         lastOpenedBy: auth.currentUser?.uid || "admin",
         unread: false,
         lastSender: auth.currentUser?.uid || "admin",
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
+      await markNotificationsSeen();
     } catch (e) {
-      console.warn("[messages] mark as read failed:", e?.message || e);
+      // ignore
     }
-
-    // mark student messages as seen
-    await markThreadMessagesSeen(threadId);
 
     await loadThreadMessages(threadId);
   }
@@ -1091,46 +1768,60 @@ function initDashboard() {
     chatEmpty.style.display = "block";
 
     try {
-      const msgsSnap = await getDocs(collection(db, "threads", threadId, "messages"));
+      const msgsSnap = await getDocs(
+        collection(db, "threads", threadId, "messages")
+      );
       const items = msgsSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .sort((a,b) => (a?.createdAt?.toMillis?.() ?? 0) - (b?.createdAt?.toMillis?.() ?? 0));
-
-    renderChat(items);
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort(
+          (a, b) =>
+            (a?.createdAt?.toMillis?.() ?? 0) -
+            (b?.createdAt?.toMillis?.() ?? 0)
+        );
+      renderChat(items);
     } catch (e) {
       console.error("[messages] loadThreadMessages error:", e);
-      chatMessages.innerHTML = `<div class="muted">Failed to load messages.</div>`;
+      chatMessages.innerHTML =
+        `<div class="muted">Failed to load messages.</div>`;
     }
   }
 
   function renderChat(items) {
     const myUid = auth.currentUser?.uid;
+
     if (!items.length) {
       chatEmpty.style.display = "block";
       return;
     }
+
     chatEmpty.style.display = "none";
-
-    chatMessages.innerHTML = items.map(m => {
-      const isMine = (m.senderId && myUid && m.senderId === myUid) || (m.senderRole === "admin");
-      const who = isMine ? "You" : (m.senderName || "Student");
-      const when = m.createdAt ? tsToLocal(m.createdAt) : "";
-      const delivered = m.deliveredAt ? `Delivered ${tsToLocal(m.deliveredAt)}` : "Delivering…";
-      const seen = m.seenAt ? `Seen ${tsToLocal(m.seenAt)}` : null;
-      const status = isMine ? (seen || delivered) : (seen ? `Seen by admin ${tsToLocal(m.seenAt)}` : delivered);
-
-      return `
-        <div style="margin:8px 0; display:flex; ${isMine ? "justify-content:flex-end" : "justify-content:flex-start"};">
-          <div style="max-width:70%; border:1px solid #e5e7eb; border-radius:12px; padding:8px 10px; background:${isMine ? "#eef7ff" : "#fff"};">
+    chatMessages.innerHTML = items
+      .map((m) => {
+        const isMine =
+          (m.senderId && myUid && m.senderId === myUid) ||
+          m.senderRole === "admin";
+        const who = isMine ? "You" : m.senderName || "Student";
+        const when = m.createdAt ? tsToLocal(m.createdAt) : "";
+        return `
+        <div style="margin:8px 0; display:flex; ${
+          isMine
+            ? "justify-content:flex-end"
+            : "justify-content:flex-start"
+        };">
+          <div style="max-width:70%; border:1px solid #e5e7eb; border-radius:12px; padding:8px 10px; background:${
+            isMine ? "#eef7ff" : "#fff"
+          };">
             <div style="font-size:12px; color:#6b7280; margin-bottom:4px;">
-              <b>${escapeHTML(who)}</b> • <span>${escapeHTML(when)}</span>
+              <b>${escapeHTML(who)}</b> • <span>${escapeHTML(
+          when
+        )}</span>
             </div>
             <div>${escapeHTML(m.text || "")}</div>
-            <div style="font-size:11px;color:#9ca3af;margin-top:6px;">${escapeHTML(status || "")}</div>
           </div>
         </div>
       `;
-    }).join("");
+      })
+      .join("");
 
     chatBox.scrollTop = chatBox.scrollHeight;
   }
@@ -1138,25 +1829,27 @@ function initDashboard() {
   chatForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!CURRENT_THREAD_ID) return;
+
     const text = (chatText?.value || "").trim();
     if (!text) return;
 
     try {
-      await addDoc(collection(db, "threads", CURRENT_THREAD_ID, "messages"), {
-        text,
-        senderId: auth.currentUser?.uid || "admin",
-        senderRole: "admin",
-        senderName: "Admin",
-        createdAt: serverTimestamp(),
-        deliveredAt: serverTimestamp(),
-        seenAt: null,
-      });
+      await addDoc(
+        collection(db, "threads", CURRENT_THREAD_ID, "messages"),
+        {
+          text,
+          senderId: auth.currentUser?.uid || "admin",
+          senderRole: "admin",
+          senderName: "Admin",
+          createdAt: serverTimestamp()
+        }
+      );
 
       await updateDoc(doc(db, "threads", CURRENT_THREAD_ID), {
-        lastMessage: { text, subject: (CURRENT_THREAD_META?.subject || "") },
+        lastMessage: { text },
         lastSender: auth.currentUser?.uid || "admin",
         updatedAt: serverTimestamp(),
-        unread: false,
+        unread: false
       });
 
       chatText.value = "";
@@ -1169,43 +1862,55 @@ function initDashboard() {
 
   markUnreadBtn?.addEventListener("click", async () => {
     if (!CURRENT_THREAD_ID || !CURRENT_THREAD_META) return;
+
     try {
       await updateDoc(doc(db, "threads", CURRENT_THREAD_ID), {
         lastSender: CURRENT_THREAD_META.studentUid,
         unread: true,
-        updatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
-      alert("Marked as unread. You can find it again in Messages.");
+      alert("Marked as unread.");
     } catch (e) {
-      console.error("[messages] mark unread error:", e);
+      console.error(e);
       alert("Failed to mark as unread.");
     }
   });
 
   deleteThreadBtn?.addEventListener("click", async () => {
     if (!CURRENT_THREAD_ID) return;
-    const ok = confirm("Delete this conversation? This will remove all messages permanently.");
-    if (!ok) return;
+    if (
+      !confirm(
+        "Delete this conversation? This will remove all messages permanently."
+      )
+    )
+      return;
+
     try {
-      await deleteThread(CURRENT_THREAD_ID);
+      await deleteSubcollection([
+        "threads",
+        CURRENT_THREAD_ID,
+        "messages"
+      ]);
+      await deleteDoc(doc(db, "threads", CURRENT_THREAD_ID));
       CURRENT_THREAD_ID = null;
       alert("Conversation deleted.");
       showPage("messages");
-      await loadThreads();
     } catch (e) {
-      console.error("[messages] delete thread error:", e);
-      alert("Failed to delete conversation. Check permissions.");
+      console.error(e);
+      alert("Failed to delete conversation.");
     }
   });
 
-  /* ============== LOGOUT & INITIAL LOAD ============== */
-  document.getElementById("logoutBtn")?.addEventListener("click", async () => {
-    await signOut(auth);
-    location.href = "auth.html";
-  });
+  /* ================= LOGOUT & INIT ================= */
+  document
+    .getElementById("logoutBtn")
+    ?.addEventListener("click", async () => {
+      await signOut(auth);
+      location.href = "auth.html";
+    });
 
-  // 🔄 Realtime for students + threads; sections stay one-shot for now
   subscribeStudents();
+  subscribeTeaching();
   loadSections().catch(console.error);
-  subscribeThreads();
+  startThreadsWatcher();
 }

@@ -5,29 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Grade Viewer — Login & Sign Up</title>
 
-  <!-- Your global tokens / buttons / container styles -->
+  <!-- Styles -->
   <link rel="stylesheet" href="css/style.css" />
-
-  <!-- Auth page stylesheet (theme + layout) -->
   <link rel="stylesheet" href="css/auth.css" />
-
-  <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-
-  <!-- Minimal helper for 3-column responsive layout -->
-  <style>
-    .form-row.three-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: .75rem;
-    }
-    @media (max-width: 900px) { .form-row.three-col { grid-template-columns: 1fr 1fr; } }
-    @media (max-width: 600px) { .form-row.three-col { grid-template-columns: 1fr; } }
-    .field-error { color: #b91c1c; font-size: .85rem; margin-top: .35rem; }
-    .is-invalid { border-color: #ef4444 !important; }
-  </style>
 </head>
+
 <body class="auth-page">
+  <!-- ✅ Loading Overlay -->
+  <div id="loading-overlay" class="loading-overlay" hidden>
+    <div class="loading-spinner"></div>
+    <div class="success-check hidden"><i class="fas fa-check-circle"></i></div>
+  </div>
+
+  <!-- ===== LOGIN CARD ===== -->
   <div class="auth-container">
     <div class="auth-card">
       <div class="auth-header">
@@ -36,19 +27,23 @@
       </div>
 
       <!-- Tabs -->
-      <div class="auth-tabs" role="tablist" aria-label="Role Tabs">
-        <button id="tab-student" class="auth-tab active" role="tab" aria-selected="true" aria-controls="panel-login" tabindex="0" data-role="student">
-          <i class="fas fa-user-graduate" aria-hidden="true"></i> Student
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" data-role="student" type="button">
+          <i class="fas fa-user-graduate"></i> Student
         </button>
-        <button id="tab-admin" class="auth-tab" role="tab" aria-selected="false" aria-controls="panel-login" tabindex="-1" data-role="admin">
-          <i class="fas fa-user-shield" aria-hidden="true"></i> Admin
+        <button class="auth-tab" data-role="teacher" type="button">
+          <i class="fas fa-chalkboard-teacher"></i> Teacher
+        </button>
+        <button class="auth-tab" data-role="admin" type="button">
+          <i class="fas fa-user-shield"></i> Admin
         </button>
       </div>
 
       <div class="auth-body">
-        <!-- Login Panel -->
-        <section id="panel-login" class="auth-panel active" role="tabpanel" aria-labelledby="tab-student">
-          <h2 class="sr-only">Login</h2>
+        <section id="panel-login" class="auth-panel active">
+          <!-- 🔴 Persistent banner host (outside the form) -->
+          <div id="login-banner-host" class="form-error-banner" hidden></div>
+
           <form id="login-form" class="auth-form" novalidate>
             <div class="form-group">
               <label for="login-email">Email Address</label>
@@ -58,9 +53,15 @@
             <div class="form-group">
               <label for="login-password">Password</label>
               <div class="password-wrapper">
-                <input type="password" id="login-password" class="form-control" required autocomplete="current-password" />
-                <button type="button" class="btn icon-btn" data-toggle="password" data-target="#login-password" aria-label="Show password">
-                  <i class="fas fa-eye" aria-hidden="true"></i>
+                <input
+                  type="password"
+                  id="login-password"
+                  class="form-control"
+                  placeholder="Enter password"
+                  required
+                  autocomplete="current-password" />
+                <button type="button" class="icon-btn" aria-label="Show password" aria-pressed="false">
+                  <i class="fas fa-eye"></i>
                 </button>
               </div>
             </div>
@@ -76,214 +77,159 @@
             <button type="submit" class="btn btn-secondary submit-btn">Log In</button>
           </form>
 
-          <!-- Student can sign up; Admin cannot -->
           <div class="auth-switch small" data-only="student">
-            New here? <a href="#" data-switch="signup">Create an account</a>
+            New here? <a href="#" id="open-signup">Create an account</a>
+          </div>
+          <div class="auth-switch small" data-only="teacher" style="display:none">
+            Teacher accounts are created by your school.
           </div>
           <div class="auth-switch small" data-only="admin" style="display:none">
-            Admin accounts are managed by your school. Please contact an existing admin to be added.
+            Admin accounts are managed by your school.
+          </div>
+
+          <div class="auth-back">
+            <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Homepage</a>
           </div>
         </section>
-
-        <!-- Sign Up Panel (students only) -->
-        <section id="panel-signup" class="auth-panel" role="tabpanel" aria-labelledby="tab-student" hidden>
-          <h2 class="sr-only">Sign Up</h2>
-          <form id="signup-form" class="auth-form" novalidate>
-            <input type="hidden" id="signup-role" value="student" required />
-
-            <div class="form-group">
-              <label for="signup-name">Full Name</label>
-              <input type="text" id="signup-name" class="form-control" required />
-            </div>
-
-            <!-- Student ID Number -->
-            <div class="form-group">
-              <label for="signup-id">Student ID Number</label>
-              <input
-                type="text"
-                id="signup-id"
-                class="form-control"
-                inputmode="numeric"
-                autocomplete="off"
-                required
-                pattern="[0-9\-]{5,20}"
-                aria-describedby="id-help"
-              />
-            </div>
-
-            <div class="form-group">
-              <label for="signup-email">Email Address</label>
-              <input type="email" id="signup-email" class="form-control" required />
-            </div>
-
-            <!-- Course, Year & Section -->
-            <fieldset class="form-group" aria-labelledby="course-year-legend">
-              <legend id="course-year-legend" class="form-legend">Course, Year &amp; Section</legend>
-              <div class="form-row three-col">
-                <div class="form-col">
-                  <label for="signup-course">Course</label>
-                  <select id="signup-course" class="form-control" required>
-                    <option value="" disabled selected>Select course</option>
-                    <option value="BSCS">BS Computer Science</option>
-                    <option value="BSIT">BS Information Technology</option>
-
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-
-                <div class="form-col">
-                  <label for="signup-year">Year Level</label>
-                  <select id="signup-year" class="form-control" required>
-                    <option value="" disabled selected>Select year</option>
-                    <option value="1">1st Year</option>
-                    <option value="2">2nd Year</option>
-                    <option value="3">3rd Year</option>
-                    <option value="4">4th Year</option>
-                    <option value="5">5th Year</option>
-                  </select>
-                </div>
-
-                <div class="form-col">
-                  <label for="signup-section">Section</label>
-                  <select id="signup-section" class="form-control" required aria-describedby="section-help">
-                    <option value="" disabled selected>Select section</option>
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="D">D</option>
-                    <option value="E">E</option>
-                    <option value="F">F</option>
-                  </select>
-                </div>
-              </div>
-            </fieldset>
-
-            <div class="form-group">
-              <label for="signup-password">Password</label>
-              <input type="password" id="signup-password" class="form-control" placeholder="Create a strong password" required />
-              <div class="password-strength">
-                <div class="strength-bar">
-                  <div class="strength-fill weak"></div>
-                </div>
-                <div class="strength-text">Password strength: Weak</div>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="signup-confirm-password">Confirm Password</label>
-              <div class="password-wrapper">
-                <input type="password" id="signup-confirm-password" class="form-control" placeholder="Re-enter your password" required />
-                <button type="button" class="btn icon-btn" data-toggle="password" data-target="#signup-confirm-password" aria-label="Show password">
-                  <i class="fas fa-eye" aria-hidden="true"></i>
-                </button>
-              </div>
-            </div>
-
-            <div class="terms-checkbox">
-              <input type="checkbox" id="agree-terms" required />
-              <label for="agree-terms">
-                I agree to the <a href="#" class="terms-link">Terms of Service</a> and
-                <a href="#" class="terms-link">Privacy Policy</a>.
-              </label>
-            </div>
-
-            <button type="submit" class="btn btn-secondary submit-btn">
-              <i class="fas fa-user-plus"></i> Create Account
-            </button>
-          </form>
-
-          <div class="auth-switch small">
-            Already have an account? <a href="#" data-switch="login">Log in</a>
-          </div>
-        </section>
-
-        <div class="auth-back">
-          <a href="index.html"><i class="fas fa-arrow-left"></i> Back to Homepage</a>
-        </div>
       </div>
     </div>
   </div>
 
-  <!-- Firebase + auth handlers -->
+  <!-- ===== FLOATING SIGNUP MODAL ===== -->
+  <div id="signup-float" class="signup-float" hidden>
+    <div class="signup-card">
+      <h2><i class="fas fa-user-plus"></i> Create Account</h2>
+
+      <form id="signup-form" class="auth-form" novalidate>
+        <div class="form-group">
+          <label for="signup-name">Full Name</label>
+          <input type="text" id="signup-name" class="form-control" required />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-id">Student ID Number</label>
+          <input type="text" id="signup-id" class="form-control" required />
+        </div>
+
+        <div class="form-group">
+          <label for="signup-email">Email Address</label>
+          <input type="email" id="signup-email" class="form-control" required />
+        </div>
+
+        <fieldset class="form-group">
+          <legend>Course, Year & Section</legend>
+          <div class="form-row three-col">
+            <div class="form-col">
+              <label for="signup-course">Course</label>
+              <select id="signup-course" class="form-control" required>
+                <option value="" disabled selected>Select course</option>
+                <option value="BIT">BIT Computer Technology</option>
+                <option value="BTVT-ED-AT">BTVT-ED Automotive Technology</option>
+                <option value="BTVT-ED-CP">BTVT-ED Computer Programming</option>
+                <option value="BTVT-ED-CT">BTVT-ED Civil Technology</option>
+                <option value="BTVT-ED-ET">BTVT-ED Electrical Technology</option>
+                <option value="BTVT-ED-ET">BTVT-ED Electronics Technology</option>
+                 <option value="BTVT-ED-FSM">BTVT-ED Food & Service Management</option>
+                 <option value="BTVT-ED-MT">BTVT-ED Mechanical Technology</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label for="signup-year">Year Level</label>
+              <select id="signup-year" class="form-control" required>
+                <option value="" disabled selected>Select year</option>
+                <option value="1">1st Year</option>
+                <option value="2">2nd Year</option>
+                <option value="3">3rd Year</option>
+                <option value="4">4th Year</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label for="signup-section">Section</label>
+              <select id="signup-section" class="form-control" required>
+                <option value="" disabled selected>Select section</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="B">c</option>
+                <option value="B">D</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="form-group">
+          <label for="signup-password">Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="signup-password"
+              class="form-control"
+              placeholder="Create password"
+              required
+              autocomplete="new-password" />
+            <button type="button" class="icon-btn" aria-label="Show password" aria-pressed="false">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="signup-confirm-password">Confirm Password</label>
+          <div class="password-wrapper">
+            <input
+              type="password"
+              id="signup-confirm-password"
+              class="form-control"
+              placeholder="Re-enter password"
+              required
+              autocomplete="new-password" />
+            <button type="button" class="icon-btn" aria-label="Show password" aria-pressed="false">
+              <i class="fas fa-eye"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="terms-checkbox">
+          <input type="checkbox" id="agree-terms" required />
+          <label for="agree-terms">
+            I agree to the <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-secondary submit-btn">
+          <i class="fas fa-user-plus"></i> Create Account
+        </button>
+
+        <div class="auth-back">
+          <a href="#" class="close-float"><i class="fas fa-arrow-left"></i> Back to Login</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== FORGOT PASSWORD MODAL ===== -->
+<div id="forgot-modal" class="signup-float" hidden>
+  <div class="signup-card">
+    <h2><i class="fas fa-unlock-alt"></i> Reset Password</h2>
+
+    <form id="forgot-form" class="auth-form" novalidate>
+      <div class="form-group">
+        <label for="forgot-email">Enter your email</label>
+        <input type="email" id="forgot-email" class="form-control" required autocomplete="email" />
+      </div>
+
+      <button type="submit" class="btn btn-secondary submit-btn">
+        <i class="fas fa-paper-plane"></i> Send Reset Link
+      </button>
+
+      <div class="auth-back">
+        <a href="#" class="close-forgot"><i class="fas fa-arrow-left"></i> Back to Login</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+  <!-- Scripts (modules) -->
   <script type="module" src="js/firebase.js"></script>
   <script type="module" src="js/auth.js"></script>
-
-  <!-- Page logic (tabs + switches + password toggles) -->
-  <script>
-    // Role tabs control which role is selected for signup and can be read by auth.js
-    const tabStudent = document.getElementById('tab-student');
-    const tabAdmin = document.getElementById('tab-admin');
-    const panelLogin = document.getElementById('panel-login');
-    const panelSignup = document.getElementById('panel-signup');
-    const signupRole = document.getElementById('signup-role');
-
-    function showElList(els, show){ els.forEach(el => el.style.display = show ? '' : 'none'); }
-
-    function setActiveRole(role){
-      const isStudent = role === 'student';
-      tabStudent.classList.toggle('active', isStudent);
-      tabAdmin.classList.toggle('active', !isStudent);
-      tabStudent.setAttribute('aria-selected', String(isStudent));
-      tabAdmin.setAttribute('aria-selected', String(!isStudent));
-      tabStudent.tabIndex = isStudent ? 0 : -1;
-      tabAdmin.tabIndex = isStudent ? -1 : 0;
-
-      // enforce: sign-ups are for students only
-      if (signupRole) signupRole.value = 'student';
-
-      // expose to auth.js
-      document.documentElement.dataset.activeRole = role;
-
-      // Only students can see/use Sign Up
-      if (!isStudent) {
-        panelLogin.classList.add('active');
-        panelLogin.hidden = false;
-        panelSignup.classList.remove('active');
-        panelSignup.hidden = true;
-      }
-      showElList(document.querySelectorAll('[data-only="student"]'), isStudent);
-      showElList(document.querySelectorAll('[data-only="admin"]'), !isStudent);
-    }
-
-    tabStudent.addEventListener('click', () => setActiveRole('student'));
-    tabAdmin.addEventListener('click', () => setActiveRole('admin'));
-
-    // Deep-link support via hash (#student / #admin)
-    const hash = (location.hash || '#student').replace('#','');
-    setActiveRole(hash === 'admin' ? 'admin' : 'student');
-
-    // Switchers between login and signup panels
-    document.querySelectorAll('[data-switch]')?.forEach(link => {
-      link.addEventListener('click', (e) => {
-        e.preventDefault();
-        const activeRole = document.documentElement.dataset.activeRole || 'student';
-        const target = link.getAttribute('data-switch');
-        if (target === 'signup' && activeRole !== 'student') return; // block admin signup
-
-        const showLogin = target === 'login';
-        panelLogin.classList.toggle('active', showLogin);
-        panelSignup.classList.toggle('active', !showLogin);
-        panelLogin.hidden = !showLogin;
-        panelSignup.hidden = showLogin;
-
-        const focusTarget = (showLogin ? panelLogin : panelSignup).querySelector('input, button, select');
-        if (focusTarget) focusTarget.focus();
-      });
-    });
-
-    // Password visibility toggles
-    document.querySelectorAll('[data-toggle="password"]').forEach(btn => {
-      const targetSel = btn.getAttribute('data-target');
-      const input = document.querySelector(targetSel);
-      btn.addEventListener('click', () => {
-        const isPassword = input.getAttribute('type') === 'password';
-        input.setAttribute('type', isPassword ? 'text' : 'password');
-        btn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
-        const icon = btn.querySelector('i');
-        icon.classList.toggle('fa-eye');
-        icon.classList.toggle('fa-eye-slash');
-      });
-    });
-  </script>
 </body>
 </html>
