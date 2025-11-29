@@ -1,4 +1,3 @@
-// js/admin.js
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
@@ -146,7 +145,13 @@ const initials = (name, fb = "U") =>
 async function deleteSubcollection([c1, id1, c2]) {
   const ref = collection(db, c1, id1, c2);
   const snap = await getDocs(ref);
-  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  console.log(`[deleteSubcollection] ${c1}/${id1}/${c2} -> ${snap.size} docs`);
+  await Promise.all(
+    snap.docs.map((d) => {
+      console.log("  deleting:", d.ref.path);
+      return deleteDoc(d.ref);
+    })
+  );
 }
 
 /* ================= Main ================= */
@@ -399,6 +404,12 @@ function initDashboard() {
   let CURRENT_THREAD_ID = null;
   let CURRENT_THREAD_META = null;
 
+  // NEW: filter state for Students course chips
+  let STUDENTS_COURSE_FILTER = "__ALL__";
+
+  // NEW: filter state for teacher assigned sections
+  let TEACHER_SECTIONS_YEAR_FILTER = "__ALL__";
+
   /* ---------- Realtime: users, teaching ---------- */
   let unsubUsers = null;
   let unsubTeaching = null;
@@ -512,6 +523,7 @@ function initDashboard() {
   );
   const studentsSearch = document.getElementById("studentsSearch");
   const studentsSort = document.getElementById("studentsSort");
+  const studentsCourseButtons = document.getElementById("studentsCourseButtons"); // NEW
 
   async function loadStudentAverages() {
     const pairs = await Promise.all(
@@ -564,11 +576,22 @@ function initDashboard() {
 
     let data = [...STUDENTS];
 
+    // filter by year (existing)
     if (yrFilter !== "__ALL__") {
       const yk = yearKey(yrFilter);
       data = data.filter((s) => yearKey(s.year) === yk);
     }
 
+    // NEW: filter by course based on chips
+    if (STUDENTS_COURSE_FILTER && STUDENTS_COURSE_FILTER !== "__ALL__") {
+      const key = STUDENTS_COURSE_FILTER.toUpperCase();
+      data = data.filter((s) => {
+        const c = (s.course || "").toUpperCase();
+        return c === key || c.includes(key);
+      });
+    }
+
+    // existing text search
     if (term) {
       data = data.filter(
         (s) =>
@@ -612,53 +635,109 @@ function initDashboard() {
       .join("");
   }
 
+  // UPDATED: more detailed, step-by-step delete with logging
   async function deleteStudent(uid) {
     const s = STUDENTS.find((st) => st.uid === uid);
-    const label =
-      s?.name || s?.email || s?.id || uid;
+    const label = s?.name || s?.email || s?.id || uid;
 
     const ok = confirm(
       `Delete student "${label}"?\nThis will remove their grades, subjects taken, section memberships, and message thread.`
     );
     if (!ok) return;
 
+    console.log("[deleteStudent] START uid =", uid);
+    const failures = [];
+
+    // 1) delete grades
     try {
-      // 1) delete grades
       await deleteSubcollection(["users", uid, "grades"]);
+    } catch (err) {
+      console.error("[deleteStudent] grades delete failed:", err);
+      failures.push(`grades: ${err.code || err.message}`);
+    }
 
-      // 2) delete subjectsTaken
+    // 2) delete subjectsTaken
+    try {
       await deleteSubcollection(["users", uid, "subjectsTaken"]);
+    } catch (err) {
+      console.error("[deleteStudent] subjectsTaken delete failed:", err);
+      failures.push(`subjectsTaken: ${err.code || err.message}`);
+    }
 
-      // 3) remove from all sections/members
+    // 3) remove from all sections/members
+    try {
+      console.log("[deleteStudent] querying members for studentUid =", uid);
       const cg = await getDocs(
         query(
           collectionGroup(db, "members"),
           where("studentUid", "==", uid)
         )
       );
-      await Promise.all(cg.docs.map((d) => deleteDoc(d.ref)));
-
-      // 4) delete message thread (threads/{uid} + messages)
-      await deleteSubcollection(["threads", uid, "messages"]).catch(
-        () => {}
+      console.log("[deleteStudent] members found:", cg.size);
+      await Promise.all(
+        cg.docs.map((d) => {
+          console.log("  deleting member doc:", d.ref.path);
+          return deleteDoc(d.ref);
+        })
       );
-      await deleteDoc(doc(db, "threads", uid)).catch(() => {});
-
-      // 5) delete user doc
-      await deleteDoc(doc(db, "users", uid));
-
-      alert("Student deleted successfully.");
     } catch (err) {
-      console.error("[deleteStudent] error:", err);
+      console.error("[deleteStudent] members delete failed:", err);
+      failures.push(`section members: ${err.code || err.message}`);
+    }
+
+    // 4) delete message thread (threads/{uid} + messages)
+    try {
+      console.log("[deleteStudent] deleting thread/messages for uid =", uid);
+      await deleteSubcollection(["threads", uid, "messages"]).catch((e) => {
+        console.warn("[deleteStudent] thread messages delete failed (ignored):", e);
+      });
+      await deleteDoc(doc(db, "threads", uid)).catch((e) => {
+        console.warn("[deleteStudent] thread doc delete failed (ignored):", e);
+      });
+    } catch (err) {
+      console.error("[deleteStudent] thread delete outer error:", err);
+      failures.push(`thread: ${err.code || err.message}`);
+    }
+
+    // 5) delete user doc
+    try {
+      console.log("[deleteStudent] deleting user doc users/" + uid);
+      await deleteDoc(doc(db, "users", uid));
+    } catch (err) {
+      console.error("[deleteStudent] user doc delete failed:", err);
+      failures.push(`user doc: ${err.code || err.message}`);
+    }
+
+    console.log("[deleteStudent] DONE uid =", uid, "failures:", failures);
+
+    if (failures.length) {
       alert(
-        "Failed to delete student. Check Firestore rules / permissions."
+        "Student delete encountered errors:\n" +
+        failures.join("\n") +
+        "\n\nCheck the browser console for details."
       );
+    } else {
+      alert("Student deleted successfully.");
     }
   }
 
   studentsFilterYear?.addEventListener("change", renderStudents);
   studentsSearch?.addEventListener("input", renderStudents);
   studentsSort?.addEventListener("change", renderStudents);
+
+  // NEW: course chips for Students
+  studentsCourseButtons?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-course]");
+    if (!btn) return;
+
+    STUDENTS_COURSE_FILTER = btn.dataset.course || "__ALL__";
+
+    studentsCourseButtons
+      .querySelectorAll("button[data-course]")
+      .forEach((b) => b.classList.toggle("active", b === btn));
+
+    renderStudents();
+  });
 
   studentsTableBody?.addEventListener("click", (e) => {
     const row = e.target.closest("tr");
@@ -676,7 +755,7 @@ function initDashboard() {
     }
 
     if (e.target.closest("button[data-action='delete']")) {
-      deleteStudent(uid).catch(console.error);
+      deleteStudent(uid); // deleteStudent already handles its own errors
       return;
     }
   });
@@ -915,6 +994,7 @@ function initDashboard() {
     renderStudentSummary().catch(console.error);
   });
 
+  // export SoG
   exportSoGBtn?.addEventListener("click", () => {
     const table = document.querySelector("#student-detail table");
     if (!table) return;
@@ -970,16 +1050,17 @@ function initDashboard() {
   const exportSectionsBtn = document.getElementById(
     "exportSectionsBtn"
   );
-  const addSectionModal = document.getElementById(
-    "addSectionModal"
-  );
-  const addSectionForm = document.getElementById("addSectionForm");
-  const closeAddSection = document.getElementById(
-    "closeAddSection"
-  );
-  const cancelAddSection = document.getElementById(
-    "cancelAddSection"
-  );
+  const sectionsFilterCourse = document.getElementById("sectionsFilterCourse"); // select
+  const sectionsCourseButtons = document.getElementById("sectionsCourseButtons"); // optional buttons container
+
+  // --- UI tweak: hide "Show All Courses" option in sections dropdown (value still usable) ---
+  if (sectionsFilterCourse) {
+    const allOpt = sectionsFilterCourse.querySelector('option[value="__ALL__"]');
+    if (allOpt) {
+      allOpt.hidden = true;
+      allOpt.textContent = "";
+    }
+  }
 
   const sdTitle = document.getElementById("sdTitle");
   const sdCourse = document.getElementById("sdCourse");
@@ -1006,6 +1087,17 @@ function initDashboard() {
   );
   const cancelAddMember = document.getElementById(
     "cancelAddMember"
+  );
+
+  const addSectionModal = document.getElementById(
+    "addSectionModal"
+  );
+  const addSectionForm = document.getElementById("addSectionForm");
+  const closeAddSection = document.getElementById(
+    "closeAddSection"
+  );
+  const cancelAddSection = document.getElementById(
+    "cancelAddSection"
   );
 
   const memberSelect = document.getElementById("memberSelect");
@@ -1046,13 +1138,24 @@ function initDashboard() {
   }
 
   function renderSections() {
-    if (!SECTIONS.length) {
+    let list = SECTIONS.slice();
+
+    const courseFilter = sectionsFilterCourse?.value || "__ALL__";
+    if (courseFilter !== "__ALL__") {
+      const key = courseFilter.toUpperCase();
+      list = list.filter((s) => {
+        const c = (s.course || "").toUpperCase();
+        return c === key || c.includes(key);
+      });
+    }
+
+    if (!list.length) {
       sectionsTableBody.innerHTML =
-        `<tr><td colspan="5">No sections yet.</td></tr>`;
+        `<tr><td colspan="5">No sections yet for selected course.</td></tr>`;
       return;
     }
 
-    sectionsTableBody.innerHTML = SECTIONS
+    sectionsTableBody.innerHTML = list
       .map(
         (s) => `
       <tr data-id="${s.id}">
@@ -1113,6 +1216,36 @@ function initDashboard() {
         );
       }
     }
+  });
+
+  sectionsFilterCourse?.addEventListener("change", () => {
+    // sync buttons (if present)
+    if (sectionsCourseButtons) {
+      const v = sectionsFilterCourse.value;
+      sectionsCourseButtons
+        .querySelectorAll("button[data-course]")
+        .forEach((b) =>
+          b.classList.toggle("active", b.dataset.course === v)
+        );
+    }
+    renderSections();
+  });
+
+  // Optional: sections course buttons → control select
+  sectionsCourseButtons?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-course]");
+    if (!btn) return;
+    const value = btn.dataset.course || "__ALL__";
+
+    if (sectionsFilterCourse) {
+      sectionsFilterCourse.value = value;
+    }
+
+    sectionsCourseButtons
+      .querySelectorAll("button[data-course]")
+      .forEach((b) => b.classList.toggle("active", b === btn));
+
+    renderSections();
   });
 
   async function openSectionDetail(sec) {
@@ -1286,12 +1419,40 @@ function initDashboard() {
     closeAddMemberModal
   );
 
+  // ✅ UPDATED: Only show students whose course AND year match CURRENT_SECTION
   function refreshMemberSelect() {
     if (!memberSelect) return;
+
+    let list = STUDENTS;
+
+    if (CURRENT_SECTION) {
+      const secCourse = String(CURRENT_SECTION.course || "")
+        .toUpperCase()
+        .trim();
+      const secYearKey = yearKey(CURRENT_SECTION.year || "");
+
+      list = STUDENTS.filter((s) => {
+        let okCourse = true;
+        let okYear = true;
+
+        if (secCourse) {
+          const c = String(s.course || "").toUpperCase().trim();
+          okCourse = c === secCourse || c.includes(secCourse);
+        }
+
+        if (secYearKey) {
+          const sy = yearKey(s.year);
+          okYear = sy === secYearKey;
+        }
+
+        return okCourse && okYear;
+      });
+    }
+
     const opts = [
       '<option value="">— Select from Students —</option>'
     ].concat(
-      STUDENTS.map(
+      list.map(
         (s) =>
           `<option value="${s.uid}"
               data-id="${escapeHTML(s.id)}"
@@ -1350,6 +1511,7 @@ function initDashboard() {
             email,
             studentId: sid,
             year: yr,
+            course: CURRENT_SECTION?.course || "", // ✅ tie quick-add student to section's course
             createdAt: serverTimestamp()
           },
           { merge: true }
@@ -1402,6 +1564,8 @@ function initDashboard() {
     "teachersTableBody"
   );
   const teachersSearch = document.getElementById("teachersSearch");
+  const teachersFilterCourse = document.getElementById("teachersFilterCourse"); // select
+  const teachersCourseButtons = document.getElementById("teachersCourseButtons"); // optional buttons
   const tdName = document.getElementById("tdName");
   const tdEmail = document.getElementById("tdEmail");
   const tdUid = document.getElementById("tdUid");
@@ -1417,6 +1581,12 @@ function initDashboard() {
   const backToTeachersLink = document.getElementById(
     "backToTeachersLink"
   );
+  const teacherYearFilter = document.getElementById("teacherYearFilter"); // optional buttons
+
+  // UI tweak: hide "All Courses" dropdown in Teachers tab (chips na lang gagamitin)
+  if (teachersFilterCourse) {
+    teachersFilterCourse.style.display = "none";
+  }
 
   function renderTeachers() {
     if (!teachersTableBody) return;
@@ -1424,7 +1594,28 @@ function initDashboard() {
       .toLowerCase()
       .trim();
 
+    const courseFilter = teachersFilterCourse?.value || "__ALL__";
+
     let rows = TEACHERS.slice();
+
+    // filter by assigned sections' course (preferred)
+    if (courseFilter !== "__ALL__") {
+      const key = courseFilter.toUpperCase();
+      rows = rows.filter((t) => {
+        const assigned = TEACHING_BY_TEACHER.get(t.uid) || [];
+        if (assigned.length) {
+          return assigned.some((a) => {
+            const c = (a.course || "").toUpperCase();
+            return c === key || c.includes(key);
+          });
+        }
+        // fallback to teacher.course if no assigned sections
+        const c = (t.course || "").toUpperCase();
+        return c === key || c.includes(key);
+      });
+    }
+
+    // existing name/email search
     if (term) {
       rows = rows.filter(
         (t) =>
@@ -1461,9 +1652,51 @@ function initDashboard() {
       `;
       })
       .join("");
+
+    // UI tweak: hide "Assigned Sections" column (3rd col) – pwede na i-open si teacher para makita sections
+    const teacherTable = teachersTableBody.closest("table");
+    if (teacherTable) {
+      const ths = teacherTable.querySelectorAll("thead th");
+      if (ths[2]) ths[2].style.display = "none";
+      teacherTable.querySelectorAll("tbody tr").forEach((tr) => {
+        const cell = tr.children[2];
+        if (cell) cell.style.display = "none";
+      });
+    }
   }
 
   teachersSearch?.addEventListener("input", renderTeachers);
+
+  teachersFilterCourse?.addEventListener("change", () => {
+    // sync buttons if present
+    if (teachersCourseButtons) {
+      const v = teachersFilterCourse.value;
+      teachersCourseButtons
+        .querySelectorAll("button[data-course]")
+        .forEach((b) =>
+          b.classList.toggle("active", b.dataset.course === v)
+        );
+    }
+    renderTeachers();
+  });
+
+  // Optional: teachers course buttons → control select
+  teachersCourseButtons?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-course]");
+    if (!btn) return;
+
+    const value = btn.dataset.course || "__ALL__";
+
+    if (teachersFilterCourse) {
+      teachersFilterCourse.value = value;
+    }
+
+    teachersCourseButtons
+      .querySelectorAll("button[data-course]")
+      .forEach((b) => b.classList.toggle("active", b === btn));
+
+    renderTeachers();
+  });
 
   backToTeachersLink?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -1514,6 +1747,16 @@ function initDashboard() {
     tdEmail.textContent = t.email || "—";
     tdUid.textContent = t.uid || "—";
 
+    // reset year filter
+    TEACHER_SECTIONS_YEAR_FILTER = "__ALL__";
+    if (teacherYearFilter) {
+      teacherYearFilter
+        .querySelectorAll("button[data-year]")
+        .forEach((b) =>
+          b.classList.toggle("active", b.dataset.year === "__ALL__")
+        );
+    }
+
     await loadSections();
     await populateAssignableSections(t.uid);
     renderTeacherDetailAssignments(t.uid);
@@ -1548,7 +1791,16 @@ function initDashboard() {
   }
 
   function renderTeacherDetailAssignments(teacherUid) {
-    const list = TEACHING_BY_TEACHER.get(teacherUid) || [];
+    const listAll = TEACHING_BY_TEACHER.get(teacherUid) || [];
+
+    let list = listAll;
+    if (TEACHER_SECTIONS_YEAR_FILTER !== "__ALL__") {
+      const key = TEACHER_SECTIONS_YEAR_FILTER;
+      list = listAll.filter(
+        (x) => String(yearKey(x.year)).trim() === key
+      );
+    }
+
     if (!list.length) {
       teacherSectionsBody.innerHTML =
         `<tr><td colspan="4">No assigned sections.</td></tr>`;
@@ -1564,13 +1816,29 @@ function initDashboard() {
         <td>${escapeHTML(prettyYear(x.year || ""))}</td>
         <td class="nowrap">
           <button class="btn btn-danger btn-xs" data-action="unassign">Unassign</button>
-          <button class="btn btn-secondary btn-xs" data-action="open-section">Open Section</button>
+          <button class="btn btn-secondary btn-xs" data-action="open-section">View</button>
         </td>
       </tr>
     `
       )
       .join("");
   }
+
+  // year filter buttons for assigned sections
+  teacherYearFilter?.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-year]");
+    if (!btn) return;
+    if (!CURRENT_TEACHER) return;
+
+    const value = btn.dataset.year || "__ALL__";
+    TEACHER_SECTIONS_YEAR_FILTER = value;
+
+    teacherYearFilter
+      .querySelectorAll("button[data-year]")
+      .forEach((b) => b.classList.toggle("active", b === btn));
+
+    renderTeacherDetailAssignments(CURRENT_TEACHER.uid);
+  });
 
   // IMPORTANT: teaching docId = teacherUid_sectionId (matches rules)
   assignSectionBtn?.addEventListener("click", async () => {

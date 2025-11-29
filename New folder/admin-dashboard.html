@@ -1,4 +1,3 @@
-<!-- admin.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -106,6 +105,19 @@
                   <option value="id">Student ID</option>
                 </select>
               </div>
+            </div>
+
+            <!-- NEW: Course chips for Students -->
+            <div id="studentsCourseButtons" style="margin:6px 0; display:flex; flex-wrap:wrap; gap:6px;">
+              <button type="button" class="btn btn-xs btn-chip active" data-course="__ALL__">All Courses</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BIT">BIT</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-AT">BTVT-ED AT</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-CP">BTVT-ED CP</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-CT">BTVT-ED CT</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-ET">BTVT-ED ET</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-ELX">BTVT-ED ELX</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-FSM">BTVT-ED FSM</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-MT">BTVT-ED MT</button>
             </div>
 
             <div class="table-container">
@@ -251,6 +263,38 @@
                 <button class="btn btn-secondary btn-sm" id="exportSectionsBtn"><i class="fas fa-download"></i> Export</button>
               </div>
             </div>
+
+            <!-- Course filter for sections (select + buttons) -->
+            <div class="filters" style="margin-top:8px;">
+              <div class="form-group">
+                <label for="sectionsFilterCourse">Course</label>
+                <select id="sectionsFilterCourse" class="form-control">
+                  <option value="__ALL__">Show All Courses</option>
+                  <option value="BIT">BIT Computer Technology</option>
+                  <option value="BTVT-ED-AT">BTVT-ED Automotive Technology</option>
+                  <option value="BTVT-ED-CP">BTVT-ED Computer Programming</option>
+                  <option value="BTVT-ED-CT">BTVT-ED Civil Technology</option>
+                  <option value="BTVT-ED-ET">BTVT-ED Electrical Technology</option>
+                  <option value="BTVT-ED-ELX">BTVT-ED Electronics Technology</option>
+                  <option value="BTVT-ED-FSM">BTVT-ED Food &amp; Service Management</option>
+                  <option value="BTVT-ED-MT">BTVT-ED Mechanical Technology</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Buttons that control the same filter -->
+            <div id="sectionsCourseButtons" style="margin:6px 0; display:flex; flex-wrap:wrap; gap:6px;">
+              <button type="button" class="btn btn-xs btn-chip active" data-course="__ALL__">All</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BIT">BIT</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-AT">BTVT-ED AT</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-CP">BTVT-ED CP</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-CT">BTVT-ED CT</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-ET">BTVT-ED ET</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-ELX">BTVT-ED ELX</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-FSM">BTVT-ED FSM</button>
+              <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-MT">BTVT-ED MT</button>
+            </div>
+
             <div class="table-container">
               <table>
                 <thead>
@@ -304,8 +348,36 @@
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Teachers</div>
-              <div class="section-actions">
-                <input id="teachersSearch" class="form-control" placeholder="Search teacher name or email" style="min-width:260px;">
+              <div class="section-actions" style="display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:100%;">
+                <div style="display:flex;gap:8px;align-items:center;width:100%;flex-wrap:wrap;">
+                  <input id="teachersSearch" class="form-control" placeholder="Search teacher name or email" style="min-width:260px;">
+
+                  <!-- Teacher course filter (select, used by JS, hidden if you want) -->
+                  <select id="teachersFilterCourse" class="form-control" style="min-width:220px;">
+                    <option value="__ALL__">All Courses</option>
+                    <option value="BIT">BIT Computer Technology</option>
+                    <option value="BTVT-ED-AT">BTVT-ED Automotive Technology</option>
+                    <option value="BTVT-ED-CP">BTVT-ED Computer Programming</option>
+                    <option value="BTVT-ED-CT">BTVT-ED Civil Technology</option>
+                    <option value="BTVT-ED-ET">BTVT-ED Electrical Technology</option>
+                    <option value="BTVT-ED-ELX">BTVT-ED Electronics Technology</option>
+                    <option value="BTVT-ED-FSM">BTVT-ED Food &amp; Service Management</option>
+                    <option value="BTVT-ED-MT">BTVT-ED Mechanical Technology</option>
+                  </select>
+                </div>
+
+                <!-- Buttons to filter teachers by course -->
+                <div id="teachersCourseButtons" style="margin-top:2px; display:flex; flex-wrap:wrap; gap:6px;">
+                  <button type="button" class="btn btn-xs btn-chip active" data-course="__ALL__">All Teachers</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BIT">BIT</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-AT">BTVT-ED AT</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-CP">BTVT-ED CP</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-CT">BTVT-ED CT</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-ET">BTVT-ED ET</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-ELX">BTVT-ED ELX</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-FSM">BTVT-ED FSM</button>
+                  <button type="button" class="btn btn-xs btn-chip" data-course="BTVT-ED-MT">BTVT-ED MT</button>
+                </div>
               </div>
             </div>
 
@@ -341,6 +413,16 @@
             </div>
 
             <div class="muted" style="margin-bottom:8px;"><b>Teacher UID:</b> <span id="tdUid">—</span></div>
+
+            <!-- Year filter for assigned sections -->
+            <div id="teacherYearFilter" style="margin:6px 0; display:flex; flex-wrap:wrap; gap:6px;">
+              <button type="button" class="btn btn-xs btn-chip active" data-year="__ALL__">All Years</button>
+              <button type="button" class="btn btn-xs btn-chip" data-year="1">1st Year</button>
+              <button type="button" class="btn btn-xs btn-chip" data-year="2">2nd Year</button>
+              <button type="button" class="btn btn-xs btn-chip" data-year="3">3rd Year</button>
+              <button type="button" class="btn btn-xs btn-chip" data-year="4">4th Year</button>
+              <button type="button" class="btn btn-xs btn-chip" data-year="5">5th Year</button>
+            </div>
 
             <div class="table-container">
               <table>
@@ -413,7 +495,7 @@
     </main>
   </div>
 
-  <!-- Modals (same as your version) -->
+  <!-- Modals -->
   <div class="modal" id="addSectionModal" aria-hidden="true" role="dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -423,7 +505,20 @@
       <div class="modal-body">
         <form id="addSectionForm">
           <div class="form-row">
-            <div class="form-group"><label for="sectionCourse">Course</label><input id="sectionCourse" class="form-control" placeholder="e.g. BS Math" required/></div>
+            <div class="form-group">
+              <label for="sectionCourse">Course</label>
+              <input id="sectionCourse" class="form-control" placeholder="e.g. BS Math" list="courseOptions" required/>
+              <datalist id="courseOptions">
+                <option value="BIT">BIT Computer Technology</option>
+                <option value="BTVT-ED-AT">BTVT-ED Automotive Technology</option>
+                <option value="BTVT-ED-CP">BTVT-ED Computer Programming</option>
+                <option value="BTVT-ED-CT">BTVT-ED Civil Technology</option>
+                <option value="BTVT-ED-ET">BTVT-ED Electrical Technology</option>
+                <option value="BTVT-ED-ELX">BTVT-ED Electronics Technology</option>
+                <option value="BTVT-ED-FSM">BTVT-ED Food &amp; Service Management</option>
+                <option value="BTVT-ED-MT">BTVT-ED Mechanical Technology</option>
+              </datalist>
+            </div>
             <div class="form-group"><label for="sectionName">Section</label><input id="sectionName" class="form-control" placeholder="e.g. A" required/></div>
             <div class="form-group"><label for="sectionYear">Year</label>
               <select id="sectionYear" class="form-control" required>
