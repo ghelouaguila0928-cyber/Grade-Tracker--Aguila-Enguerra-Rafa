@@ -24,18 +24,14 @@
           href="#"
           class="nav-item active"
           data-page="sections"
-          ><i class="fas fa-layer-group"></i><span>My Sections</span></a
-        >
+        ><i class="fas fa-layer-group"></i><span>My Sections</span></a>
         <a href="#" class="nav-item" data-page="students"
-          ><i class="fas fa-users"></i><span>All My Students</span></a
-        >
+        ><i class="fas fa-users"></i><span>All My Students</span></a>
         <a href="#" class="nav-item" data-page="messages"
-          ><i class="fas fa-comments"></i><span>Messages</span></a
-        >
+        ><i class="fas fa-comments"></i><span>Messages</span></a>
         <div class="nav-divider" role="separator"></div>
         <a href="#" class="nav-item" data-page="profile"
-          ><i class="fas fa-user"></i><span>Profile</span></a
-        >
+        ><i class="fas fa-user"></i><span>Profile</span></a>
       </nav>
 
       <div class="sidebar-footer">
@@ -57,38 +53,23 @@
       <header class="header">
         <div class="header-title" id="pageTitle">My Sections</div>
         <div class="header-actions">
-          <!-- NOTIF (with badge + dropdown) -->
+          <!-- NOTIF (sidebar style, same as student portal) -->
           <div class="notif-wrap">
             <button
               class="header-action-btn"
-              id="openNotifs"
+              id="notificationsBtn"
               title="Notifications"
-              aria-expanded="false"
-              aria-haspopup="true"
+              aria-label="Notifications"
             >
               <i class="fas fa-bell"></i>
-              <span id="notifBadge" class="notif-badge" hidden>0</span>
+              <span
+                id="notificationsCount"
+                class="notif-badge"
+                hidden
+              >
+                0
+              </span>
             </button>
-
-            <div id="notifMenu" class="notif-menu" hidden>
-              <div class="notif-menu-head">Notifications</div>
-              <div id="notifList" class="notif-list">
-                <div class="muted" id="notifEmpty">
-                  No new notifications.
-                </div>
-              </div>
-              <div class="notif-menu-foot">
-                <button
-                  id="notifViewAll"
-                  class="btn btn-secondary btn-xs"
-                >
-                  Open Messages
-                </button>
-                <button id="notifMarkRead" class="btn btn-primary btn-xs">
-                  Mark all as read
-                </button>
-              </div>
-            </div>
           </div>
 
           <!-- Toggle -->
@@ -114,9 +95,7 @@
             <div class="section-header">
               <div class="section-title">My Sections</div>
               <div class="section-actions">
-                <span class="muted"
-                  >* Sections are assigned by Admin</span
-                >
+                <span class="muted">* Sections are assigned by Admin</span>
               </div>
             </div>
             <div class="table-container">
@@ -148,9 +127,7 @@
         >
           <div class="content-section">
             <div class="crumbs">
-              <a href="#" id="backToSectionsLink"
-                >&larr; Back to My Sections</a
-              >
+              <a href="#" id="backToSectionsLink">&larr; Back to My Sections</a>
             </div>
             <div class="section-header">
               <div class="section-title">
@@ -202,10 +179,10 @@
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">All My Students</div>
-              <div class="section-actions">
+              <div class="section-actions" style="gap: 12px; flex-wrap: wrap;">
                 <div
                   class="form-group"
-                  style="min-width: 260px"
+                  style="min-width: 220px"
                 >
                   <label for="studentsSearch">Search</label>
                   <input
@@ -213,6 +190,34 @@
                     class="form-control"
                     placeholder="Search by name, ID, or email"
                   />
+                </div>
+
+                <div
+                  class="form-group"
+                  style="min-width: 180px"
+                >
+                  <label for="studentsFilterCourse">Course</label>
+                  <select
+                    id="studentsFilterCourse"
+                    class="form-control"
+                  >
+                    <option value="__ALL__">All Courses</option>
+                    <!-- options filled by teacher.js -->
+                  </select>
+                </div>
+
+                <div
+                  class="form-group"
+                  style="min-width: 180px"
+                >
+                  <label for="studentsFilterSection">Section</label>
+                  <select
+                    id="studentsFilterSection"
+                    class="form-control"
+                  >
+                    <option value="__ALL__">All Sections</option>
+                    <!-- options filled by teacher.js -->
+                  </select>
                 </div>
               </div>
             </div>
@@ -344,11 +349,12 @@
                       <th>Course Code</th>
                       <th>Units</th>
                       <th>Mark</th>
+                      <th>Actions</th> <!-- NEW -->
                     </tr>
                   </thead>
                   <tbody id="sogTableBody">
                     <tr>
-                      <td colspan="6">No grades yet.</td>
+                      <td colspan="7">No grades yet.</td>
                     </tr>
                   </tbody>
                 </table>
@@ -446,6 +452,31 @@
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Profile</div>
+              <div class="section-actions">
+                <button
+                  class="btn btn-secondary btn-sm"
+                  id="editProfileBtn"
+                  type="button"
+                >
+                  <i class="fas fa-pen"></i> Edit
+                </button>
+                <button
+                  class="btn btn-primary btn-sm"
+                  id="saveProfileBtn"
+                  type="button"
+                  style="display: none"
+                >
+                  <i class="fas fa-save"></i> Save
+                </button>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  id="cancelProfileBtn"
+                  type="button"
+                  style="display: none"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
             <div class="profile-header">
               <div class="avatar-large" id="profileInitials">
@@ -463,7 +494,15 @@
                 <tbody>
                   <tr>
                     <th style="width: 220px">Full Name</th>
-                    <td id="p_name">—</td>
+                    <td>
+                      <span id="p_name">—</span>
+                      <input
+                        id="p_name_input"
+                        class="form-control"
+                        style="display: none; max-width: 320px"
+                        placeholder="Enter full name"
+                      />
+                    </td>
                   </tr>
                   <tr>
                     <th>Email</th>
@@ -620,6 +659,25 @@
       </div>
     </div>
   </div>
+
+  <!-- 🔔 Notification Sidebar (same structure as student portal) -->
+  <div id="notifBackdrop" class="notif-backdrop"></div>
+  <aside id="notifSidebar" class="notif-sidebar" aria-label="Notifications">
+    <div class="notif-sidebar-header">
+      <h3>Notifications</h3>
+      <button
+        id="notifCloseBtn"
+        class="notif-close-btn"
+        type="button"
+        aria-label="Close notifications"
+      >
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div id="notifList" class="notif-sidebar-list">
+      <!-- filled by teacher.js -->
+    </div>
+  </aside>
 
   <script type="module" src="js/firebase.js"></script>
   <script type="module" src="js/teacher.js"></script>

@@ -264,7 +264,11 @@ body {
   transform:scale(1.1);
 }
 
-/* Notification badge + dropdown */
+/* ============================
+   Notification badge + SIDEBAR
+   ============================ */
+
+/* Badge on bell */
 .notification-badge {
   position:absolute;
   top:-8px;
@@ -283,58 +287,110 @@ body {
   box-shadow:0 0 0 2px #fff;
 }
 
+/* Optional bell wrapper */
 .notif-wrap {
   position:relative;
 }
 
-.notif-menu {
-  position:absolute;
-  top:36px;
+/* Dimmed backdrop (JS toggles .show) */
+.notif-backdrop {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.35);
+  z-index:1100;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .2s ease;
+}
+
+.notif-backdrop.show {
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* Right-side notification sidebar (hidden by default) */
+.notif-sidebar {
+  position:fixed;
+  top:0;
   right:0;
-  width:320px;
-  max-height:60vh;
-  overflow:auto;
+  bottom:0;
+  width:360px;
+  max-width:90vw;
   background:#fff;
-  border:1px solid var(--border);
-  border-radius:12px;
+  border-left:1px solid var(--border);
   box-shadow:var(--shadow-lg);
-  z-index:3000;
-}
-
-.notif-menu-head {
-  padding:10px 12px;
-  font-weight:800;
-  border-bottom:1px solid var(--border);
-}
-
-.notif-menu-foot {
-  padding:10px 12px;
+  z-index:1200;
   display:flex;
-  gap:8px;
-  justify-content:flex-end;
-  border-top:1px solid var(--border);
+  flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .22s ease-out;
 }
 
+.notif-sidebar.show {
+  transform:translateX(0);
+}
+
+/* Sidebar header */
+.notif-sidebar-header {
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.notif-sidebar-header h2 {
+  font-size:1rem;
+  font-weight:800;
+}
+
+/* Close button (X) */
+.close-notif {
+  background:none;
+  border:0;
+  font-size:1.4rem;
+  cursor:pointer;
+  color:var(--muted);
+}
+
+/* Sidebar body */
+.notif-sidebar-body {
+  padding:10px 14px 14px;
+  flex:1;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Scroll area for notification items */
 .notif-list {
-  padding:6px 8px;
+  padding:8px 2px 4px;
+  margin-top:6px;
+  flex:1;
+  overflow-y:auto;
 }
 
+/* Individual notification card */
 .notif-item {
   display:flex;
   gap:10px;
-  padding:10px;
+  padding:10px 12px;
   border-radius:10px;
   cursor:pointer;
   border:1px solid var(--border);
   background:#fff;
   margin:6px 0;
-  transition:background .18s ease, box-shadow .18s ease, transform .08s ease;
+  transition:
+    background .18s ease,
+    box-shadow .18s ease,
+    transform .08s ease,
+    border-color .18s ease;
 }
 
 .notif-item:hover {
   background:#f7faf8;
   box-shadow:0 4px 12px rgba(0,0,0,.05);
   transform:translateY(-1px);
+  border-color:var(--primary);
 }
 
 .notif-ava {
@@ -346,10 +402,22 @@ body {
   font-weight:800;
   color:#fff;
   background:linear-gradient(135deg,var(--primary),var(--secondary));
+  flex-shrink:0;
 }
 
 .notif-type-admin .notif-ava {
   background:linear-gradient(135deg,#2e86de,#54a0ff);
+}
+
+.notif-title {
+  font-size:.9rem;
+  font-weight:700;
+  margin-bottom:2px;
+}
+
+.notif-meta {
+  font-size:.78rem;
+  color:var(--muted);
 }
 
 .content {
@@ -393,10 +461,30 @@ body {
   background:#fff;
 }
 
+/* ✅ SCROLL ONLY INSIDE MESSAGES TAB */
+#messages .table-container {
+  max-height: calc(100vh - 260px);
+  overflow-y:auto;
+}
+
+/* ✅ SCROLL ONLY INSIDE STUDENT MANAGEMENT (STUDENTS TAB) */
+#students .table-container {
+  max-height: calc(100vh - 260px);
+  overflow-y:auto;
+}
+
+/* basic table */
 table {
   width:100%;
   border-collapse:collapse;
   font-size:.95rem;
+}
+
+/* Keep wide layout only for these tables */
+#students table,
+#teachers table,
+#sections table {
+  min-width:600px;
 }
 
 th,td {
@@ -844,6 +932,20 @@ body.modal-open {
   table {
     font-size:.9rem;
   }
+
+  /* Make notif sidebar a bit narrower */
+  .notif-sidebar {
+    width:320px;
+  }
+
+  /* Adjust inner scroll height for messages */
+  #messages .table-container {
+    max-height: calc(100vh - 240px);
+  }
+
+  #students .table-container {
+    max-height: calc(100vh - 240px);
+  }
 }
 
 /* Small screens (phones) */
@@ -889,17 +991,9 @@ body.modal-open {
     padding:10px 10px;
   }
 
-  /* Students: hide Status & Average on very small screens to reduce clutter */
-  #students table thead th:nth-child(5),
-  #students table tbody td:nth-child(5),
+  /* ✅ Students: hide ONLY Average column on very small screens */
   #students table thead th:nth-child(6),
   #students table tbody td:nth-child(6) {
-    display:none;
-  }
-
-  /* Messages: hide status column for compact view */
-  #messages table thead th:nth-child(3),
-  #messages table tbody td:nth-child(3) {
     display:none;
   }
 
@@ -911,6 +1005,20 @@ body.modal-open {
   .modal-content {
     width:95%;
     margin:18px;
+  }
+
+  /* Narrower notif sidebar on small screens */
+  .notif-sidebar {
+    width:300px;
+  }
+
+  /* More compact messages scroll height on phones */
+  #messages .table-container {
+    max-height:60vh;
+  }
+
+  #students .table-container {
+    max-height:60vh;
   }
 }
 
@@ -936,13 +1044,7 @@ body.modal-open {
     padding:8px 8px;
   }
 
-  /* Students: also hide email on very tiny screens */
-  #students table thead th:nth-child(3),
-  #students table tbody td:nth-child(3) {
-    display:none;
-  }
-
-  /* Messages: shrink action cell */
+  /* Messages: keep all columns, just make actions tighter */
   #messages table thead th:nth-child(4),
   #messages table tbody td:nth-child(4) {
     white-space:nowrap;
@@ -963,4 +1065,49 @@ body.modal-open {
     padding:5px 10px;
     font-size:.75rem;
   }
+
+  /* Narrower notif sidebar */
+  .notif-sidebar {
+    width:280px;
+  }
+}
+
+#notifSidebar {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+/* Status pill (online / offline) */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.status-online {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-online .status-dot {
+  background: #22c55e;
+}
+
+.status-offline {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.status-offline .status-dot {
+  background: #9ca3af;
 }

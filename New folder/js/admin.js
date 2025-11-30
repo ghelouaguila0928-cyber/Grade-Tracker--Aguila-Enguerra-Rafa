@@ -1,5 +1,9 @@
+// js/admin.js
 import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import {
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   doc,
   getDoc,
@@ -14,7 +18,8 @@ import {
   where,
   serverTimestamp,
   getCountFromServer,
-  onSnapshot
+  onSnapshot,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
 /* ================= ROUTE GUARD (Admin only) ================= */
@@ -68,7 +73,7 @@ const escapeHTML = (s) =>
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#039;"
-  }[c]));
+  }[c] || c));
 
 const semKey = (label) => {
   const v = String(label || "").toLowerCase();
@@ -163,14 +168,13 @@ function initDashboard() {
   const navLinks = document.querySelectorAll(".nav-item");
   const pages = document.querySelectorAll(".page");
 
-  // Notifications DOM
-  const openNotifsBtn = document.getElementById("openNotifs");
-  const notifBadge = document.getElementById("notifBadge");
-  const notifMenu = document.getElementById("notifMenu");
+  // 🔔 Notifications DOM (SIDEBAR style)
+  const notificationsBtn = document.getElementById("notificationsBtn");
+  const notificationsCount = document.getElementById("notificationsCount");
+  const notifSidebar = document.getElementById("notifSidebar");
+  const notifBackdrop = document.getElementById("notifBackdrop");
+  const notifCloseBtn = document.getElementById("notifCloseBtn");
   const notifList = document.getElementById("notifList");
-  const notifEmpty = document.getElementById("notifEmpty");
-  const notifViewAll = document.getElementById("notifViewAll");
-  const notifMarkRead = document.getElementById("notifMarkRead");
 
   const TITLES = {
     students: "Student Management",
@@ -214,6 +218,7 @@ function initDashboard() {
     if (key === "messages") {
       markNotificationsSeen().catch(() => {});
       renderThreadsTable(THREADS_CACHE);
+      closeNotifSidebar();
     }
   }
 
@@ -229,25 +234,88 @@ function initDashboard() {
 
   showPage("students");
 
-  /* ---------- Notifications ---------- */
+  /* ---------- Notification sidebar helpers ---------- */
+  function openNotifSidebar() {
+    notifSidebar?.classList.add("show");
+    notifBackdrop?.classList.add("show");
+    notifBackdrop?.setAttribute("aria-hidden", "false");
+  }
+
+  function closeNotifSidebar() {
+    notifSidebar?.classList.remove("show");
+    notifBackdrop?.classList.remove("show");
+    notifBackdrop?.setAttribute("aria-hidden", "true");
+  }
+
+  notificationsBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = notifSidebar?.classList.contains("show");
+    if (isOpen) {
+      closeNotifSidebar();
+    } else {
+      openNotifSidebar();
+    }
+  });
+
+  notifCloseBtn?.addEventListener("click", () => {
+    closeNotifSidebar();
+  });
+
+  notifBackdrop?.addEventListener("click", () => {
+    closeNotifSidebar();
+  });
+
+  /* ---------- Notifications rendering ---------- */
   function renderNotifBadge(count) {
-    if (!notifBadge) return;
+    if (!notificationsCount) return;
     if (count <= 0) {
-      notifBadge.setAttribute("hidden", "");
+      notificationsCount.setAttribute("hidden", "");
       return;
     }
-    notifBadge.textContent = String(count);
-    notifBadge.removeAttribute("hidden");
+    notificationsCount.textContent = String(count);
+    notificationsCount.removeAttribute("hidden");
+  }
+
+  // ensure na may thread doc si student (threads/{uid})
+  async function ensureThreadForStudentFromAdmin(studentUid, name, email) {
+    if (!studentUid) return null;
+
+    const tRef = doc(db, "threads", studentUid);
+    const snap = await getDoc(tRef);
+
+    if (!snap.exists()) {
+      await setDoc(
+        tRef,
+        {
+          studentUid,
+          studentName: name || "",
+          studentEmail: email || "",
+          lastMessage: {
+            subject: "Conversation",
+            text: "",
+            senderId: "",
+            senderRole: "admin"
+          },
+          lastSender: "",
+          lastSenderRole: "admin",
+          updatedAt: serverTimestamp(),
+          unread: false
+        },
+        { merge: true }
+      );
+    }
+
+    return tRef.id;
   }
 
   function renderNotifList(items) {
     if (!notifList) return;
     notifList.innerHTML = "";
     if (!items.length) {
-      notifEmpty.style.display = "block";
+      notifList.innerHTML =
+        '<div class="muted" style="padding:8px 0;">No new notifications.</div>';
       return;
     }
-    notifEmpty.style.display = "none";
 
     for (const it of items) {
       const row = document.createElement("div");
@@ -258,51 +326,44 @@ function initDashboard() {
         <div class="notif-ava">${escapeHTML(it.initials)}</div>
         <div>
           <div class="notif-title">${escapeHTML(it.title)}</div>
-          <div class="notif-meta">${escapeHTML(it.preview)} • ${escapeHTML(
-        it.when
-      )}</div>
+          <div class="notif-meta">
+            ${escapeHTML(it.preview)} • ${escapeHTML(it.when)}
+          </div>
         </div>
       `;
       row.addEventListener("click", async () => {
-        notifMenu.setAttribute("hidden", "");
-        showPage("messages");
-        await openThread(it.threadId, {
-          studentUid: it.studentUid,
-          name: it.title,
-          email: it.email || ""
-        });
-        markNotificationsSeen().catch(() => {});
+        try {
+          // 1) ensure threadId
+          let threadId = it.threadId;
+
+          if (!threadId && it.studentUid) {
+            threadId = await ensureThreadForStudentFromAdmin(
+              it.studentUid,
+              it.title,
+              it.email || ""
+            );
+          }
+
+          // 2) go to Messages
+          closeNotifSidebar();
+          showPage("messages");
+
+          // 3) open convo if we have a threadId
+          if (threadId) {
+            await openThread(threadId, {
+              studentUid: it.studentUid,
+              name: it.title,
+              email: it.email || ""
+            });
+            markNotificationsSeen().catch(() => {});
+          }
+        } catch (e) {
+          console.error("[notif click] failed:", e);
+        }
       });
       notifList.appendChild(row);
     }
   }
-
-  openNotifsBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isHidden = notifMenu.hasAttribute("hidden");
-    notifMenu.toggleAttribute("hidden", !isHidden);
-    openNotifsBtn.setAttribute("aria-expanded", String(isHidden));
-  });
-
-  document.addEventListener("click", (e) => {
-    if (!notifMenu || notifMenu.hasAttribute("hidden")) return;
-    if (e.target.closest(".notif-wrap")) return;
-    notifMenu.setAttribute("hidden", "");
-    openNotifsBtn?.setAttribute("aria-expanded", "false");
-  });
-
-  notifViewAll?.addEventListener("click", () => {
-    notifMenu.setAttribute("hidden", "");
-    showPage("messages");
-    renderThreadsTable(THREADS_CACHE);
-    markNotificationsSeen().catch(() => {});
-  });
-
-  notifMarkRead?.addEventListener("click", () => {
-    markNotificationsSeen().catch(() => {});
-    renderNotifBadge(0);
-    renderNotifList([]);
-  });
 
   async function markNotificationsSeen() {
     const uid = auth.currentUser?.uid;
@@ -316,75 +377,6 @@ function initDashboard() {
 
   function formatWhenMs(ms) {
     return new Date(ms).toLocaleString();
-  }
-
-  function startThreadsWatcher() {
-    const tRef = collection(db, "threads");
-    let lastOpened = 0;
-    let cache = [];
-
-    const recompute = async () => {
-      try {
-        const meta = await getDoc(
-          doc(db, "adminMeta", auth.currentUser?.uid || "_")
-        );
-        lastOpened = meta?.exists()
-          ? meta.data().lastOpenedAt?.toMillis?.() || 0
-          : 0;
-      } catch {
-        lastOpened = 0;
-      }
-
-      const unread = [];
-      for (const r of cache) {
-        const upd = r.updatedAt?.toMillis?.() || 0;
-        const isNewFromStudent =
-          r.lastSender && r.studentUid && r.lastSender === r.studentUid;
-        if (isNewFromStudent && upd > lastOpened) {
-          unread.push({
-            type: "dm",
-            threadId: r.id,
-            studentUid: r.studentUid,
-            title:
-              r.studentName ||
-              r.studentEmail ||
-              r.studentUid ||
-              "Student",
-            email: r.studentEmail || "",
-            preview: r.lastMessage?.text || "New message",
-            when: formatWhenMs(upd),
-            initials: initials(r.studentName || r.studentEmail, "S")
-          });
-        }
-      }
-
-      unread.sort((a, b) => new Date(b.when) - new Date(a.when));
-      renderNotifBadge(unread.length);
-      renderNotifList(unread.slice(0, 20));
-    };
-
-    onSnapshot(
-      tRef,
-      (qs) => {
-        cache = qs.docs.map((d) => ({ id: d.id, ...d.data() }));
-        THREADS_CACHE = cache
-          .slice()
-          .sort(
-            (a, b) =>
-              (b?.updatedAt?.toMillis?.() ?? 0) -
-              (a?.updatedAt?.toMillis?.() ?? 0)
-          );
-        renderThreadsTable(THREADS_CACHE);
-        recompute().catch(() => {});
-      },
-      (e) => {
-        console.warn("[threads] onSnapshot error:", e);
-        THREADS_CACHE = [];
-        renderThreadsTable([]);
-        renderNotifBadge(0);
-        renderNotifList([]);
-      }
-    );
   }
 
   /* ---------- Global state ---------- */
@@ -403,14 +395,14 @@ function initDashboard() {
   let THREADS_CACHE = [];
   let CURRENT_THREAD_ID = null;
   let CURRENT_THREAD_META = null;
+  let THREAD_MESSAGES_UNSUB = null; // realtime listener for opened thread messages
 
-  // NEW: filter state for Students course chips
+  // 🔔 account notifications (new users)
+  let ACCOUNT_NOTIFS = [];
+
   let STUDENTS_COURSE_FILTER = "__ALL__";
-
-  // NEW: filter state for teacher assigned sections
   let TEACHER_SECTIONS_YEAR_FILTER = "__ALL__";
 
-  /* ---------- Realtime: users, teaching ---------- */
   let unsubUsers = null;
   let unsubTeaching = null;
 
@@ -432,8 +424,85 @@ function initDashboard() {
       year: yearKey(yearRaw),
       course: v.course || "",
       section: v.section || "",
-      role: (v.role || "").toLowerCase()
+      role: (v.role || "").toLowerCase(),
+      online: v.online === true,
+      lastSeenAt: v.lastSeenAt || null
     };
+  }
+
+  window.addEventListener("beforeunload", () => {
+    unsubUsers?.();
+    unsubTeaching?.();
+    THREAD_MESSAGES_UNSUB?.();
+  });
+
+  /* ================== THREADS WATCHER ================== */
+  function startThreadsWatcher() {
+    const tRef = collection(db, "threads");
+    let cache = [];
+
+    const recompute = () => {
+      const dmNotifs = [];
+
+      for (const r of cache) {
+        const updMs =
+          r.updatedAt?.toMillis?.() ??
+          (r.updatedAt?._seconds ? r.updatedAt._seconds * 1000 : Date.now());
+
+        const fromStudent =
+          r.studentUid && r.lastSender && r.lastSender === r.studentUid;
+        const isUnread = r.unread === true;
+
+        if (fromStudent && isUnread) {
+          dmNotifs.push({
+            type: "dm",
+            threadId: r.id,
+            studentUid: r.studentUid,
+            title:
+              r.studentName ||
+              r.studentEmail ||
+              r.studentUid ||
+              "Student",
+            email: r.studentEmail || "",
+            preview: r.lastMessage?.text || "New message",
+            when: formatWhenMs(updMs),
+            initials: initials(r.studentName || r.studentEmail, "S"),
+            createdAtMs: updMs
+          });
+        }
+      }
+
+      // Merge DM notifs + ACCOUNT_NOTIFS
+      const allNotifs = [...ACCOUNT_NOTIFS, ...dmNotifs].sort(
+        (a, b) => (b.createdAtMs || 0) - (a.createdAtMs || 0)
+      );
+
+      renderNotifBadge(allNotifs.length);
+      renderNotifList(allNotifs.slice(0, 20));
+    };
+
+    onSnapshot(
+      tRef,
+      (qs) => {
+        cache = qs.docs.map((d) => ({ id: d.id, ...d.data() }));
+        THREADS_CACHE = cache
+          .slice()
+          .sort(
+            (a, b) =>
+              (b?.updatedAt?.toMillis?.() ?? 0) -
+              (a?.updatedAt?.toMillis?.() ?? 0)
+          );
+        renderThreadsTable(THREADS_CACHE);
+        recompute();
+      },
+      (e) => {
+        console.warn("[threads] onSnapshot error:", e);
+        THREADS_CACHE = [];
+        renderThreadsTable([]);
+        renderNotifBadge(0);
+        renderNotifList([]);
+      }
+    );
   }
 
   function subscribeStudents() {
@@ -451,6 +520,30 @@ function initDashboard() {
           (s) => s.role === "student" || !!s.id
         );
         TEACHERS = all.filter((s) => s.role === "teacher");
+
+        // 🔔 New account notifications
+        const changes = snap.docChanges();
+        const nowMs = Date.now();
+        changes.forEach((chg) => {
+          if (chg.type !== "added") return;
+          const u = mapUserDoc(chg.doc);
+          if (u.role === "student" || u.role === "teacher") {
+            ACCOUNT_NOTIFS.unshift({
+              type: "admin",
+              threadId: null,
+              studentUid: u.uid,
+              title: u.name || u.email || "New account",
+              email: u.email || "",
+              preview:
+                u.role === "teacher"
+                  ? "New teacher account registered"
+                  : "New student account registered",
+              when: formatWhenMs(nowMs),
+              initials: initials(u.name || u.email, u.role === "teacher" ? "T" : "S"),
+              createdAtMs: nowMs
+            });
+          }
+        });
 
         renderStudents();
         refreshMemberSelect();
@@ -511,10 +604,57 @@ function initDashboard() {
     );
   }
 
-  window.addEventListener("beforeunload", () => {
-    unsubUsers?.();
-    unsubTeaching?.();
-  });
+  /* ========= helper: format last active (online / offline) ========= */
+  function formatLastActive(u) {
+    const online = u.online === true;
+    const ts = u.lastSeenAt;
+
+    if (online) {
+      return {
+        label: "Online",
+        cssClass: "status-online"
+      };
+    }
+
+    if (!ts || !ts.toDate) {
+      return {
+        label: "Offline",
+        cssClass: "status-offline"
+      };
+    }
+
+    const last = ts.toDate();
+    const now = new Date();
+    const diffMs = now - last;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHr / 24);
+
+    let text = "";
+
+    if (diffSec < 60) {
+      text = "just now";
+    } else if (diffMin < 60) {
+      text = `${diffMin} min${diffMin > 1 ? "s" : ""} ago`;
+    } else if (diffHr < 24) {
+      const mins = diffMin % 60;
+      if (mins > 0) {
+        text = `${diffHr}h ${mins}m ago`;
+      } else {
+        text = `${diffHr}h ago`;
+      }
+    } else if (diffDay < 7) {
+      text = `${diffDay} day${diffDay > 1 ? "s" : ""} ago`;
+    } else {
+      text = last.toLocaleString();
+    }
+
+    return {
+      label: `Last active: ${text}`,
+      cssClass: "status-offline"
+    };
+  }
 
   /* ================= STUDENTS LIST ================= */
   const studentsTableBody = document.getElementById("studentsTableBody");
@@ -523,7 +663,7 @@ function initDashboard() {
   );
   const studentsSearch = document.getElementById("studentsSearch");
   const studentsSort = document.getElementById("studentsSort");
-  const studentsCourseButtons = document.getElementById("studentsCourseButtons"); // NEW
+  const studentsCourseButtons = document.getElementById("studentsCourseButtons");
 
   async function loadStudentAverages() {
     const pairs = await Promise.all(
@@ -576,13 +716,11 @@ function initDashboard() {
 
     let data = [...STUDENTS];
 
-    // filter by year (existing)
     if (yrFilter !== "__ALL__") {
       const yk = yearKey(yrFilter);
       data = data.filter((s) => yearKey(s.year) === yk);
     }
 
-    // NEW: filter by course based on chips
     if (STUDENTS_COURSE_FILTER && STUDENTS_COURSE_FILTER !== "__ALL__") {
       const key = STUDENTS_COURSE_FILTER.toUpperCase();
       data = data.filter((s) => {
@@ -591,7 +729,6 @@ function initDashboard() {
       });
     }
 
-    // existing text search
     if (term) {
       data = data.filter(
         (s) =>
@@ -611,7 +748,9 @@ function initDashboard() {
 
     studentsTableBody.innerHTML = data
       .map(
-        (s) => `
+        (s) => {
+          const status = formatLastActive(s);
+          return `
       <tr data-uid="${s.uid}">
         <td>${escapeHTML(s.id || "—")}</td>
         <td class="linkable" style="cursor:pointer;text-decoration:underline;">
@@ -624,18 +763,23 @@ function initDashboard() {
             ? "—"
             : STUDENT_AVG.get(s.uid).toFixed(2)
         }</td>
-        <td>Active</td>
+        <td>
+          <span class="status-pill ${status.cssClass}">
+            <span class="status-dot"></span>
+            <span>${escapeHTML(status.label)}</span>
+          </span>
+        </td>
         <td class="nowrap">
           <button class="btn btn-secondary btn-xs" data-action="view">View</button>
           <button class="btn btn-danger btn-xs" data-action="delete">Delete</button>
         </td>
       </tr>
-    `
+    `;
+        }
       )
       .join("");
   }
 
-  // UPDATED: more detailed, step-by-step delete with logging
   async function deleteStudent(uid) {
     const s = STUDENTS.find((st) => st.uid === uid);
     const label = s?.name || s?.email || s?.id || uid;
@@ -648,7 +792,6 @@ function initDashboard() {
     console.log("[deleteStudent] START uid =", uid);
     const failures = [];
 
-    // 1) delete grades
     try {
       await deleteSubcollection(["users", uid, "grades"]);
     } catch (err) {
@@ -656,7 +799,6 @@ function initDashboard() {
       failures.push(`grades: ${err.code || err.message}`);
     }
 
-    // 2) delete subjectsTaken
     try {
       await deleteSubcollection(["users", uid, "subjectsTaken"]);
     } catch (err) {
@@ -664,7 +806,6 @@ function initDashboard() {
       failures.push(`subjectsTaken: ${err.code || err.message}`);
     }
 
-    // 3) remove from all sections/members
     try {
       console.log("[deleteStudent] querying members for studentUid =", uid);
       const cg = await getDocs(
@@ -685,7 +826,6 @@ function initDashboard() {
       failures.push(`section members: ${err.code || err.message}`);
     }
 
-    // 4) delete message thread (threads/{uid} + messages)
     try {
       console.log("[deleteStudent] deleting thread/messages for uid =", uid);
       await deleteSubcollection(["threads", uid, "messages"]).catch((e) => {
@@ -699,7 +839,6 @@ function initDashboard() {
       failures.push(`thread: ${err.code || err.message}`);
     }
 
-    // 5) delete user doc
     try {
       console.log("[deleteStudent] deleting user doc users/" + uid);
       await deleteDoc(doc(db, "users", uid));
@@ -725,7 +864,6 @@ function initDashboard() {
   studentsSearch?.addEventListener("input", renderStudents);
   studentsSort?.addEventListener("change", renderStudents);
 
-  // NEW: course chips for Students
   studentsCourseButtons?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-course]");
     if (!btn) return;
@@ -755,7 +893,7 @@ function initDashboard() {
     }
 
     if (e.target.closest("button[data-action='delete']")) {
-      deleteStudent(uid); // deleteStudent already handles its own errors
+      deleteStudent(uid);
       return;
     }
   });
@@ -994,7 +1132,6 @@ function initDashboard() {
     renderStudentSummary().catch(console.error);
   });
 
-  // export SoG
   exportSoGBtn?.addEventListener("click", () => {
     const table = document.querySelector("#student-detail table");
     if (!table) return;
@@ -1050,10 +1187,9 @@ function initDashboard() {
   const exportSectionsBtn = document.getElementById(
     "exportSectionsBtn"
   );
-  const sectionsFilterCourse = document.getElementById("sectionsFilterCourse"); // select
-  const sectionsCourseButtons = document.getElementById("sectionsCourseButtons"); // optional buttons container
+  const sectionsFilterCourse = document.getElementById("sectionsFilterCourse");
+  const sectionsCourseButtons = document.getElementById("sectionsCourseButtons");
 
-  // --- UI tweak: hide "Show All Courses" option in sections dropdown (value still usable) ---
   if (sectionsFilterCourse) {
     const allOpt = sectionsFilterCourse.querySelector('option[value="__ALL__"]');
     if (allOpt) {
@@ -1219,7 +1355,6 @@ function initDashboard() {
   });
 
   sectionsFilterCourse?.addEventListener("change", () => {
-    // sync buttons (if present)
     if (sectionsCourseButtons) {
       const v = sectionsFilterCourse.value;
       sectionsCourseButtons
@@ -1231,7 +1366,6 @@ function initDashboard() {
     renderSections();
   });
 
-  // Optional: sections course buttons → control select
   sectionsCourseButtons?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-course]");
     if (!btn) return;
@@ -1419,7 +1553,6 @@ function initDashboard() {
     closeAddMemberModal
   );
 
-  // ✅ UPDATED: Only show students whose course AND year match CURRENT_SECTION
   function refreshMemberSelect() {
     if (!memberSelect) return;
 
@@ -1477,7 +1610,6 @@ function initDashboard() {
     );
   });
 
-  // IMPORTANT: doc ID in members = studentUid (matches rules & teacherTeachesStudent)
   addMemberForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!CURRENT_SECTION) return;
@@ -1490,7 +1622,6 @@ function initDashboard() {
     const yr = yearKey(yearLabel);
 
     try {
-      // If no existing student selected, quick add
       if (!uid) {
         if (!name || !email || !sid || !yr) {
           alert(
@@ -1511,7 +1642,7 @@ function initDashboard() {
             email,
             studentId: sid,
             year: yr,
-            course: CURRENT_SECTION?.course || "", // ✅ tie quick-add student to section's course
+            course: CURRENT_SECTION?.course || "",
             createdAt: serverTimestamp()
           },
           { merge: true }
@@ -1524,7 +1655,6 @@ function initDashboard() {
         yearLabel = prettyYear(s?.year || yr);
       }
 
-      // Add member doc with ID = studentUid
       const memberRef = doc(
         db,
         "sections",
@@ -1564,8 +1694,8 @@ function initDashboard() {
     "teachersTableBody"
   );
   const teachersSearch = document.getElementById("teachersSearch");
-  const teachersFilterCourse = document.getElementById("teachersFilterCourse"); // select
-  const teachersCourseButtons = document.getElementById("teachersCourseButtons"); // optional buttons
+  const teachersFilterCourse = document.getElementById("teachersFilterCourse");
+  const teachersCourseButtons = document.getElementById("teachersCourseButtons");
   const tdName = document.getElementById("tdName");
   const tdEmail = document.getElementById("tdEmail");
   const tdUid = document.getElementById("tdUid");
@@ -1581,9 +1711,8 @@ function initDashboard() {
   const backToTeachersLink = document.getElementById(
     "backToTeachersLink"
   );
-  const teacherYearFilter = document.getElementById("teacherYearFilter"); // optional buttons
+  const teacherYearFilter = document.getElementById("teacherYearFilter");
 
-  // UI tweak: hide "All Courses" dropdown in Teachers tab (chips na lang gagamitin)
   if (teachersFilterCourse) {
     teachersFilterCourse.style.display = "none";
   }
@@ -1598,7 +1727,6 @@ function initDashboard() {
 
     let rows = TEACHERS.slice();
 
-    // filter by assigned sections' course (preferred)
     if (courseFilter !== "__ALL__") {
       const key = courseFilter.toUpperCase();
       rows = rows.filter((t) => {
@@ -1609,13 +1737,11 @@ function initDashboard() {
             return c === key || c.includes(key);
           });
         }
-        // fallback to teacher.course if no assigned sections
         const c = (t.course || "").toUpperCase();
         return c === key || c.includes(key);
       });
     }
 
-    // existing name/email search
     if (term) {
       rows = rows.filter(
         (t) =>
@@ -1637,10 +1763,10 @@ function initDashboard() {
           ? assigned.map((x) => x.label).join("; ")
           : "—";
 
-        return `
+        return `  
         <tr data-uid="${t.uid}"
             data-name="${escapeHTML(t.name || "")}"
-            data-email="${escapeHTML(t.email || "")}">
+            data-email="${escapeHTML(t.email || "")}">  
           <td>${escapeHTML(t.name || "—")}</td>
           <td>${escapeHTML(t.email || "—")}</td>
           <td>${escapeHTML(label)}</td>
@@ -1653,7 +1779,6 @@ function initDashboard() {
       })
       .join("");
 
-    // UI tweak: hide "Assigned Sections" column (3rd col) – pwede na i-open si teacher para makita sections
     const teacherTable = teachersTableBody.closest("table");
     if (teacherTable) {
       const ths = teacherTable.querySelectorAll("thead th");
@@ -1668,7 +1793,6 @@ function initDashboard() {
   teachersSearch?.addEventListener("input", renderTeachers);
 
   teachersFilterCourse?.addEventListener("change", () => {
-    // sync buttons if present
     if (teachersCourseButtons) {
       const v = teachersFilterCourse.value;
       teachersCourseButtons
@@ -1680,7 +1804,6 @@ function initDashboard() {
     renderTeachers();
   });
 
-  // Optional: teachers course buttons → control select
   teachersCourseButtons?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-course]");
     if (!btn) return;
@@ -1747,7 +1870,6 @@ function initDashboard() {
     tdEmail.textContent = t.email || "—";
     tdUid.textContent = t.uid || "—";
 
-    // reset year filter
     TEACHER_SECTIONS_YEAR_FILTER = "__ALL__";
     if (teacherYearFilter) {
       teacherYearFilter
@@ -1824,7 +1946,6 @@ function initDashboard() {
       .join("");
   }
 
-  // year filter buttons for assigned sections
   teacherYearFilter?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-year]");
     if (!btn) return;
@@ -1840,7 +1961,6 @@ function initDashboard() {
     renderTeacherDetailAssignments(CURRENT_TEACHER.uid);
   });
 
-  // IMPORTANT: teaching docId = teacherUid_sectionId (matches rules)
   assignSectionBtn?.addEventListener("click", async () => {
     if (!CURRENT_TEACHER) return;
 
@@ -1898,7 +2018,7 @@ function initDashboard() {
     }
   });
 
-  /* ================= MESSAGES ================= */
+  /* ================= MESSAGES (ADMIN ↔ STUDENT) ================= */
   const messagesTableBody = document.getElementById(
     "messagesTableBody"
   );
@@ -1944,7 +2064,7 @@ function initDashboard() {
 
     if (show === "unread") {
       list = list.filter(
-        (r) => r.lastSender === r.studentUid
+        (r) => r.lastSender === r.studentUid && r.unread === true
       );
     }
 
@@ -1957,7 +2077,7 @@ function initDashboard() {
     messagesTableBody.innerHTML = list
       .map((r) => {
         const status =
-          r.lastSender === r.studentUid ? "New" : "Seen";
+          r.lastSender === r.studentUid && r.unread ? "New" : "Seen";
         return `
         <tr data-id="${r.id}"
             data-uid="${escapeHTML(r.studentUid || "")}"
@@ -2012,15 +2132,51 @@ function initDashboard() {
     showPage("messages");
   });
 
+  // realtime listener for messages of current thread
+  function subscribeThreadMessages(threadId) {
+    if (THREAD_MESSAGES_UNSUB) {
+      THREAD_MESSAGES_UNSUB();
+      THREAD_MESSAGES_UNSUB = null;
+    }
+
+    if (!threadId) return;
+
+    chatMessages.innerHTML = "";
+    chatEmpty.style.display = "block";
+
+    const msgsQ = query(
+      collection(db, "threads", threadId, "messages"),
+      orderBy("createdAt", "asc")
+    );
+
+    THREAD_MESSAGES_UNSUB = onSnapshot(
+      msgsQ,
+      (snap) => {
+        const items = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort(
+            (a, b) =>
+              (a?.createdAt?.toMillis?.() ?? 0) -
+              (b?.createdAt?.toMillis?.() ?? 0)
+          );
+        renderChat(items);
+      },
+      (err) => {
+        console.error("[messages] subscribeThreadMessages error:", err);
+        chatMessages.innerHTML =
+          `<div class="muted">Failed to load messages.</div>`;
+      }
+    );
+  }
+
   async function openThread(threadId, meta) {
     CURRENT_THREAD_ID = threadId;
     openMessageThreadView(meta);
 
     try {
       await updateDoc(doc(db, "threads", threadId), {
-        lastOpenedBy: auth.currentUser?.uid || "admin",
         unread: false,
-        lastSender: auth.currentUser?.uid || "admin",
+        lastOpenedBy: auth.currentUser?.uid || "admin",
         updatedAt: serverTimestamp()
       });
       await markNotificationsSeen();
@@ -2028,30 +2184,7 @@ function initDashboard() {
       // ignore
     }
 
-    await loadThreadMessages(threadId);
-  }
-
-  async function loadThreadMessages(threadId) {
-    chatMessages.innerHTML = "";
-    chatEmpty.style.display = "block";
-
-    try {
-      const msgsSnap = await getDocs(
-        collection(db, "threads", threadId, "messages")
-      );
-      const items = msgsSnap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort(
-          (a, b) =>
-            (a?.createdAt?.toMillis?.() ?? 0) -
-            (b?.createdAt?.toMillis?.() ?? 0)
-        );
-      renderChat(items);
-    } catch (e) {
-      console.error("[messages] loadThreadMessages error:", e);
-      chatMessages.innerHTML =
-        `<div class="muted">Failed to load messages.</div>`;
-    }
+    subscribeThreadMessages(threadId);
   }
 
   function renderChat(items) {
@@ -2059,6 +2192,7 @@ function initDashboard() {
 
     if (!items.length) {
       chatEmpty.style.display = "block";
+      chatMessages.innerHTML = "";
       return;
     }
 
@@ -2068,17 +2202,17 @@ function initDashboard() {
         const isMine =
           (m.senderId && myUid && m.senderId === myUid) ||
           m.senderRole === "admin";
-        const who = isMine ? "You" : m.senderName || "Student";
+        const who = isMine ? "You (Admin)" : m.senderName || "Student";
         const when = m.createdAt ? tsToLocal(m.createdAt) : "";
         return `
         <div style="margin:8px 0; display:flex; ${
           isMine
             ? "justify-content:flex-end"
             : "justify-content:flex-start"
-        };">
+        }; ">
           <div style="max-width:70%; border:1px solid #e5e7eb; border-radius:12px; padding:8px 10px; background:${
             isMine ? "#eef7ff" : "#fff"
-          };">
+          }; ">
             <div style="font-size:12px; color:#6b7280; margin-bottom:4px;">
               <b>${escapeHTML(who)}</b> • <span>${escapeHTML(
           when
@@ -2094,6 +2228,7 @@ function initDashboard() {
     chatBox.scrollTop = chatBox.scrollHeight;
   }
 
+  // send message from admin
   chatForm?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!CURRENT_THREAD_ID) return;
@@ -2101,27 +2236,45 @@ function initDashboard() {
     const text = (chatText?.value || "").trim();
     if (!text) return;
 
+    const adminUid = auth.currentUser?.uid || "admin";
+
     try {
       await addDoc(
         collection(db, "threads", CURRENT_THREAD_ID, "messages"),
         {
           text,
-          senderId: auth.currentUser?.uid || "admin",
+          senderId: adminUid,
           senderRole: "admin",
           senderName: "Admin",
           createdAt: serverTimestamp()
         }
       );
 
-      await updateDoc(doc(db, "threads", CURRENT_THREAD_ID), {
-        lastMessage: { text },
-        lastSender: auth.currentUser?.uid || "admin",
-        updatedAt: serverTimestamp(),
-        unread: false
-      });
+      const meta = CURRENT_THREAD_META || {};
+      const threadRef = doc(db, "threads", CURRENT_THREAD_ID);
+
+      await setDoc(
+        threadRef,
+        {
+          studentUid: meta.studentUid || meta.uid || meta.id || "",
+          studentName: meta.name || meta.studentName || "",
+          studentEmail: meta.email || meta.studentEmail || "",
+          lastMessage: {
+            subject: "Message",
+            text,
+            senderId: adminUid,
+            senderRole: "admin"
+          },
+          lastSender: adminUid,
+          lastSenderRole: "admin",
+          updatedAt: serverTimestamp(),
+          unread: true    // unread for student side
+        },
+        { merge: true }
+      );
 
       chatText.value = "";
-      await loadThreadMessages(CURRENT_THREAD_ID);
+      // realtime listener will update the UI
     } catch (err) {
       console.error("[messages] send failed:", err);
       alert("Failed to send message.");
@@ -2161,6 +2314,8 @@ function initDashboard() {
       ]);
       await deleteDoc(doc(db, "threads", CURRENT_THREAD_ID));
       CURRENT_THREAD_ID = null;
+      THREAD_MESSAGES_UNSUB?.();
+      THREAD_MESSAGES_UNSUB = null;
       alert("Conversation deleted.");
       showPage("messages");
     } catch (e) {

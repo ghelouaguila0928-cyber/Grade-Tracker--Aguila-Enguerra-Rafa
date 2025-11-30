@@ -3,6 +3,7 @@ import { auth, db } from "./firebase.js";
 import {
   onAuthStateChanged,
   signOut,
+  updateProfile,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   doc,
@@ -10,6 +11,7 @@ import {
   addDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   collection,
   getDocs,
   query,
@@ -85,6 +87,8 @@ const sectionsTableBody = $("#sectionsTableBody");
 const sectionMembersBody = $("#sectionMembersBody");
 const studentsTableBody = $("#studentsTableBody");
 const studentsSearch = $("#studentsSearch");
+const studentsFilterCourse = $("#studentsFilterCourse");
+const studentsFilterSection = $("#studentsFilterSection");
 
 const sdTitle = $("#sdTitle");
 const sdCourse = $("#sdCourse");
@@ -128,6 +132,12 @@ const p_email = $("#p_email");
 const p_uid = $("#p_uid");
 const p_sections = $("#p_sections");
 
+/* profile edit controls */
+const p_name_input = $("#p_name_input");
+const editProfileBtn = $("#editProfileBtn");
+const saveProfileBtn = $("#saveProfileBtn");
+const cancelProfileBtn = $("#cancelProfileBtn");
+
 /* Messages page */
 const threadList = $("#threadList");
 const threadEmpty = $("#threadEmpty");
@@ -136,14 +146,13 @@ const chatBody = $("#chatBody");
 const chatInput = $("#chatInput");
 const chatSend = $("#chatSend");
 
-/* Notifications UI */
-const openNotifsBtn = $("#openNotifs");
-const notifBadge = $("#notifBadge");
-const notifMenu = $("#notifMenu");
-const notifList = $("#notifList");
-const notifEmpty = $("#notifEmpty");
-const notifViewAll = $("#notifViewAll");
-const notifMarkRead = $("#notifMarkRead");
+/* 🔔 Notifications UI (SIDEBAR style, same as student portal) */
+const notificationsBtn = $("#notificationsBtn");
+const notificationsCount = $("#notificationsCount");
+const notifSidebar = $("#notifSidebar");
+const notifBackdrop = $("#notifBackdrop");
+const notifListSidebar = $("#notifList");
+const notifCloseBtn = $("#notifCloseBtn");
 
 /* auth/logout */
 const logoutBtn = $("#logoutBtn");
@@ -250,6 +259,7 @@ let CURRENT_STUDENT_SUBJECTS = [];
         await hydrateProfile(user);
         await loadMySections(); // from "teaching"
         await buildAllMyStudents(); // from members of those sections
+        populateStudentFilters(); // fill course/section filters
         renderSections();
         renderStudents();
         startThreadsWatcher(); // watch `threads` for my students
@@ -282,6 +292,84 @@ async function hydrateProfile(user) {
   p_name.textContent = name;
   p_email.textContent = email;
   p_uid.textContent = user.uid;
+
+  // keep input in sync
+  if (p_name_input) {
+    p_name_input.value = name;
+  }
+}
+
+/* ---- Profile editing helpers ---- */
+function setProfileEditing(editing) {
+  if (!p_name || !p_name_input) return;
+
+  if (editing) {
+    p_name.style.display = "none";
+    p_name_input.style.display = "inline-block";
+
+    if (editProfileBtn) editProfileBtn.style.display = "inline-block";
+    if (saveProfileBtn) saveProfileBtn.style.display = "inline-block";
+    if (cancelProfileBtn) cancelProfileBtn.style.display = "inline-block";
+
+    p_name_input.focus();
+    p_name_input.select();
+  } else {
+    p_name.style.display = "inline";
+    p_name_input.style.display = "none";
+
+    if (editProfileBtn) editProfileBtn.style.display = "inline-block";
+    if (saveProfileBtn) saveProfileBtn.style.display = "none";
+    if (cancelProfileBtn) cancelProfileBtn.style.display = "none";
+  }
+}
+
+async function saveProfileChanges() {
+  if (!ME?.uid || !p_name_input) return;
+
+  const newName = p_name_input.value.trim();
+  if (!newName) {
+    alert("Name cannot be empty.");
+    return;
+  }
+
+  const currentName = (p_name.textContent || "").trim();
+  if (newName === currentName) {
+    setProfileEditing(false);
+    return;
+  }
+
+  try {
+    // Update Firebase Auth displayName
+    await updateProfile(ME, {
+      displayName: newName,
+    });
+
+    // Update Firestore user document
+    const uRef = doc(db, "users", ME.uid);
+    await setDoc(
+      uRef,
+      {
+        name: newName,
+        role: "teacher",
+      },
+      { merge: true }
+    );
+
+    // Update UI
+    sidebarName.textContent = newName;
+    profileName.textContent = newName;
+    p_name.textContent = newName;
+
+    const initials = initialsOf(newName, "TC");
+    profileInitials.textContent = initials;
+    sidebarAvatar.textContent = initials;
+
+    alert("Profile updated successfully.");
+    setProfileEditing(false);
+  } catch (err) {
+    console.error("[teacher] saveProfileChanges error:", err);
+    alert("Failed to update profile. Please try again.");
+  }
 }
 
 /* -------------------- Sections (from "teaching") -------------------- */
@@ -517,6 +605,8 @@ async function buildAllMyStudents() {
           name: m.name || "",
           email: m.email || "",
           year: yearKey(m.year || ""),
+          course: s.course || "",
+          section: s.name || "",
         });
       }
     }
@@ -525,10 +615,41 @@ async function buildAllMyStudents() {
   ALL_MY_STUDENTS = [...bag.values()];
 }
 
+/* fill Course + Section dropdown filters on All My Students */
+function populateStudentFilters() {
+  if (!studentsFilterCourse || !studentsFilterSection) return;
+
+  const courses = new Set();
+  const sections = new Set();
+
+  MY_SECTIONS.forEach((s) => {
+    if (s.course) courses.add(s.course);
+    if (s.name) sections.add(s.name);
+  });
+
+  studentsFilterCourse.innerHTML =
+    '<option value="__ALL__">All Courses</option>' +
+    [...courses]
+      .sort()
+      .map((c) => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`)
+      .join("");
+
+  studentsFilterSection.innerHTML =
+    '<option value="__ALL__">All Sections</option>' +
+    [...sections]
+      .sort()
+      .map(
+        (c) => `<option value="${escapeHTML(c)}">${escapeHTML(c)}</option>`
+      )
+      .join("");
+}
+
 function renderStudents() {
   if (!studentsTableBody) return;
   let rows = [...ALL_MY_STUDENTS];
   const term = (studentsSearch?.value || "").toLowerCase().trim();
+  const courseFilter = studentsFilterCourse?.value || "__ALL__";
+  const sectionFilter = studentsFilterSection?.value || "__ALL__";
 
   if (term) {
     rows = rows.filter(
@@ -537,6 +658,13 @@ function renderStudents() {
         (s.id || "").toLowerCase().includes(term) ||
         (s.email || "").toLowerCase().includes(term)
     );
+  }
+
+  if (courseFilter !== "__ALL__") {
+    rows = rows.filter((s) => (s.course || "") === courseFilter);
+  }
+  if (sectionFilter !== "__ALL__") {
+    rows = rows.filter((s) => (s.section || "") === sectionFilter);
   }
 
   if (!rows.length) {
@@ -553,7 +681,9 @@ function renderStudents() {
       data-name="${escapeHTML(s.name)}"
       data-id="${escapeHTML(s.id)}"
       data-email="${escapeHTML(s.email)}"
-      data-year="${escapeHTML(s.year)}">
+      data-year="${escapeHTML(s.year)}"
+      data-course="${escapeHTML(s.course || "")}"
+      data-section="${escapeHTML(s.section || "")}">
       <td>${escapeHTML(s.id || "—")}</td>
       <td>${escapeHTML(s.name || "—")}</td>
       <td>${escapeHTML(s.email || "—")}</td>
@@ -570,6 +700,8 @@ function renderStudents() {
     .join("");
 }
 studentsSearch?.addEventListener("input", renderStudents);
+studentsFilterCourse?.addEventListener("change", renderStudents);
+studentsFilterSection?.addEventListener("change", renderStudents);
 
 studentsTableBody?.addEventListener("click", (e) => {
   const row = e.target.closest("tr");
@@ -672,7 +804,7 @@ function toNumberGrade(g) {
 
 async function renderStudentSummary() {
   if (!CURRENT_STUDENT?.uid) {
-    sogTableBody.innerHTML = '<tr><td colspan="6">No grades.</td></tr>';
+    sogTableBody.innerHTML = '<tr><td colspan="7">No grades.</td></tr>';
     return;
   }
   try {
@@ -728,26 +860,35 @@ async function renderStudentSummary() {
     }
 
     if (!entries.length) {
-      sogTableBody.innerHTML = '<tr><td colspan="6">No grades yet.</td></tr>';
+      sogTableBody.innerHTML =
+        '<tr><td colspan="7">No grades yet.</td></tr>';
       return;
     }
     sogTableBody.innerHTML = entries
       .map(
         (ent) => `
-      <tr>
+      <tr data-grade-id="${escapeHTML(ent.id || "")}">
         <td>${escapeHTML(ent.yearLevel ?? "")}</td>
         <td>${escapeHTML(ent.semester ?? "")}</td>
         <td>${escapeHTML(ent.courseName || ent.title || "—")}</td>
         <td>${escapeHTML(ent.courseCode || ent.code || "—")}</td>
         <td>${Number(ent.units ?? 0)}</td>
         <td>${escapeHTML(ent.grade ?? ent.mark ?? "—")}</td>
+        <td class="nowrap">
+          <button class="btn btn-secondary btn-xs" data-action="edit-grade">
+            Edit
+          </button>
+          <button class="btn btn-secondary btn-xs" data-action="delete-grade">
+            Delete
+          </button>
+        </td>
       </tr>`
       )
       .join("");
   } catch (err) {
     console.error("[teacher] load grades failed:", err);
     sogTableBody.innerHTML =
-      '<tr><td colspan="6">Failed to load grades.</td></tr>';
+      '<tr><td colspan="7">Failed to load grades.</td></tr>';
   }
 }
 filterYear?.addEventListener("change", () =>
@@ -756,6 +897,55 @@ filterYear?.addEventListener("change", () =>
 filterSem?.addEventListener("change", () =>
   renderStudentSummary().catch(console.error)
 );
+
+/* Edit/Delete grade handlers */
+sogTableBody?.addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const row = btn.closest("tr");
+  const gradeId = row?.getAttribute("data-grade-id");
+  if (!gradeId || !CURRENT_STUDENT?.uid) return;
+
+  const action = btn.getAttribute("data-action");
+
+  if (action === "edit-grade") {
+    const currentMarkCell = row.querySelector("td:nth-child(6)");
+    const currentVal = (currentMarkCell?.textContent || "").trim();
+    const newVal = prompt("Enter new mark/grade:", currentVal);
+    if (!newVal || newVal.trim() === currentVal) return;
+
+    try {
+      await updateDoc(
+        doc(db, "users", CURRENT_STUDENT.uid, "grades", gradeId),
+        {
+          grade: newVal.trim(),
+          updatedAt: serverTimestamp(),
+          updatedBy: ME?.uid || null,
+        }
+      );
+      alert("Grade updated.");
+      await renderStudentSummary();
+    } catch (err) {
+      console.error("[teacher] update grade failed:", err);
+      alert("Failed to update grade.");
+    }
+  }
+
+  if (action === "delete-grade") {
+    const ok = confirm("Delete this grade?");
+    if (!ok) return;
+    try {
+      await deleteDoc(
+        doc(db, "users", CURRENT_STUDENT.uid, "grades", gradeId)
+      );
+      alert("Grade deleted.");
+      await renderStudentSummary();
+    } catch (err) {
+      console.error("[teacher] delete grade failed:", err);
+      alert("Failed to delete grade.");
+    }
+  }
+});
 
 /* ---- SUBJECTS TAKEN (teacher view tab) ---- */
 async function fetchSubjectsTaken(uid) {
@@ -908,10 +1098,22 @@ async function populateSubjectsForCurrentStudent() {
 
     CURRENT_STUDENT_SUBJECTS = list;
 
-    if (!list.length) {
+    // get already-graded subjects so we can hide them
+    const gradesSnap = await getDocs(
+      collection(db, "users", CURRENT_STUDENT.uid, "grades")
+    ).catch(() => ({ docs: [] }));
+
+    const usedSubjectIds = new Set();
+    for (const d of gradesSnap.docs) {
+      const g = d.data() || {};
+      if (g.subjectRefId) usedSubjectIds.add(String(g.subjectRefId));
+    }
+
+    const available = list.filter((subj) => !usedSubjectIds.has(subj.id));
+
+    if (!available.length) {
       sogSubject.innerHTML =
-        '<option value="">No Subjects Taken found</option>';
-      // Clear display fields
+        '<option value="">No available subjects (all have grades)</option>';
       if (sogYear) sogYear.value = "";
       if (sogSem) sogSem.value = "";
       if (sogCourseName) sogCourseName.value = "";
@@ -922,7 +1124,7 @@ async function populateSubjectsForCurrentStudent() {
 
     sogSubject.innerHTML =
       '<option value="">Select Subject</option>' +
-      list
+      available
         .map((subj) => {
           const year =
             subj.yearLevel ??
@@ -1023,7 +1225,8 @@ function openAddSoGModal(student) {
   amgStudentName.textContent =
     CURRENT_STUDENT.name || "Student";
 
-  // populate subject dropdown based on student's Subjects Taken
+  // populate subject dropdown based on student's Subjects Taken,
+  // hindi na isasama yung may grade na
   populateSubjectsForCurrentStudent().catch(console.error);
 
   addSoGModal?.classList.add("show");
@@ -1116,44 +1319,45 @@ addSoGForm?.addEventListener("submit", async (e) => {
   }
 });
 
-/* -------------------- Threads / Messaging (shared `threads` collection) -------------------- */
+/* -------------------- Notifications sidebar helpers -------------------- */
 
 function renderNotifBadge(count) {
-  if (!notifBadge) return;
+  if (!notificationsCount) return;
   if (count <= 0) {
-    notifBadge.setAttribute("hidden", "");
+    notificationsCount.textContent = "0";
+    notificationsCount.hidden = true;
     return;
   }
-  notifBadge.textContent = String(count);
-  notifBadge.removeAttribute("hidden");
+  notificationsCount.textContent = String(count);
+  notificationsCount.hidden = false;
 }
 
 function renderNotifList(items) {
-  if (!notifList) return;
-  notifList.innerHTML = "";
+  if (!notifListSidebar) return;
+  notifListSidebar.innerHTML = "";
+
   if (!items.length) {
-    notifEmpty.style.display = "block";
+    notifListSidebar.innerHTML =
+      '<div class="notif-empty">No new notifications.</div>';
     return;
   }
-  notifEmpty.style.display = "none";
 
   for (const it of items) {
     const row = document.createElement("div");
     row.className = "notif-item";
     row.innerHTML = `
-      <div class="notif-ava">${escapeHTML(
-        it.initials
-      )}</div>
-      <div>
-        <div class="notif-title">${escapeHTML(
-          it.title
-        )}</div>
+      <div class="notif-icon">
+        <div class="notif-ava">${escapeHTML(it.initials)}</div>
+      </div>
+      <div class="notif-content">
+        <div class="notif-title">${escapeHTML(it.title)}</div>
         <div class="notif-meta">
           ${escapeHTML(it.preview)} • ${escapeHTML(it.when)}
         </div>
       </div>`;
     row.addEventListener("click", () => {
-      notifMenu.setAttribute("hidden", "");
+      // close sidebar, open messages, open chat with student if available
+      closeNotifSidebar();
       if (it.studentUid) {
         const student = ALL_MY_STUDENTS.find(
           (s) => s.uid === it.studentUid
@@ -1161,37 +1365,42 @@ function renderNotifList(items) {
         if (student) {
           showPage("messages");
           openChatWith(student);
+          return;
         }
-      } else {
-        showPage("messages");
-        renderThreadsListFromCache();
       }
+      showPage("messages");
+      renderThreadsListFromCache();
     });
-    notifList.appendChild(row);
+    notifListSidebar.appendChild(row);
   }
 }
 
-openNotifsBtn?.addEventListener("click", (e) => {
-  e.stopPropagation();
-  const isHidden = notifMenu.hasAttribute("hidden");
-  notifMenu.toggleAttribute("hidden", !isHidden);
-  openNotifsBtn.setAttribute("aria-expanded", String(isHidden));
+function openNotifSidebar() {
+  if (!notifSidebar || !notifBackdrop) return;
+  notifSidebar.classList.add("active");
+  notifBackdrop.classList.add("active");
+}
+
+function closeNotifSidebar() {
+  if (!notifSidebar || !notifBackdrop) return;
+  notifSidebar.classList.remove("active");
+  notifBackdrop.classList.remove("active");
+}
+
+// open/close events
+notificationsBtn?.addEventListener("click", () => {
+  openNotifSidebar();
 });
-document.addEventListener("click", (e) => {
-  if (!notifMenu || notifMenu.hasAttribute("hidden")) return;
-  if (e.target.closest(".notif-wrap")) return;
-  notifMenu.setAttribute("hidden", "");
-  openNotifsBtn?.setAttribute("aria-expanded", "false");
+notifCloseBtn?.addEventListener("click", () => {
+  closeNotifSidebar();
 });
-notifViewAll?.addEventListener("click", () => {
-  notifMenu.setAttribute("hidden", "");
-  showPage("messages");
-  renderThreadsListFromCache();
+notifBackdrop?.addEventListener("click", (e) => {
+  if (e.target === notifBackdrop) {
+    closeNotifSidebar();
+  }
 });
-notifMarkRead?.addEventListener("click", () => {
-  renderNotifBadge(0);
-  renderNotifList([]);
-});
+
+/* -------------------- Threads / Messaging (shared `threads` collection) -------------------- */
 
 function startThreadsWatcher() {
   if (THREADS_UNSUB) THREADS_UNSUB();
@@ -1235,6 +1444,7 @@ function recomputeTeacherNotifications() {
 
   for (const t of THREADS_CACHE) {
     const updatedAtMs = t.updatedAt?.toMillis?.() || 0;
+    // treat as "unread" if last sender is the student
     if (t.lastSender && t.studentUid && t.lastSender === t.studentUid) {
       unread.push({
         type: "dm",
@@ -1269,10 +1479,10 @@ function renderThreadsListFromCache() {
   );
 
   if (!rows.length) {
-    threadEmpty.style.display = "block";
+    if (threadEmpty) threadEmpty.style.display = "block";
     return;
   }
-  threadEmpty.style.display = "none";
+  if (threadEmpty) threadEmpty.style.display = "none";
 
   for (const t of rows) {
     const el = document.createElement("div");
@@ -1447,6 +1657,25 @@ chatInput?.addEventListener("keydown", (e) => {
     e.preventDefault();
     sendChatMessage();
   }
+});
+
+/* -------------------- Profile edit button events -------------------- */
+editProfileBtn?.addEventListener("click", () => {
+  if (p_name_input && p_name) {
+    p_name_input.value = (p_name.textContent || "").trim();
+  }
+  setProfileEditing(true);
+});
+
+cancelProfileBtn?.addEventListener("click", () => {
+  if (p_name_input && p_name) {
+    p_name_input.value = (p_name.textContent || "").trim();
+  }
+  setProfileEditing(false);
+});
+
+saveProfileBtn?.addEventListener("click", () => {
+  saveProfileChanges().catch(console.error);
 });
 
 /* -------------------- Logout -------------------- */

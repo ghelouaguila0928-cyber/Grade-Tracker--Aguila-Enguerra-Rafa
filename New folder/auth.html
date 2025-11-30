@@ -12,10 +12,21 @@
 </head>
 
 <body class="auth-page">
-  <!-- ✅ Loading Overlay -->
+  <!-- ✅ Loading Overlay (NEW GREEN BAR VERSION) -->
   <div id="loading-overlay" class="loading-overlay" hidden>
-    <div class="loading-spinner"></div>
-    <div class="success-check hidden"><i class="fas fa-check-circle"></i></div>
+    <div class="loader-card">
+      <div class="loader-text">loading...</div>
+
+      <div class="loader-bar">
+        <div class="loader-bar-fill"></div>
+      </div>
+
+      <!-- Used by auth.js on success / portal entry -->
+      <div class="success-check hidden">
+        <i class="fas fa-check-circle"></i>
+        <span>Welcome to the portal</span>
+      </div>
+    </div>
   </div>
 
   <!-- ===== LOGIN CARD ===== -->
@@ -128,9 +139,9 @@
                 <option value="BTVT-ED-CP">BTVT-ED Computer Programming</option>
                 <option value="BTVT-ED-CT">BTVT-ED Civil Technology</option>
                 <option value="BTVT-ED-ET">BTVT-ED Electrical Technology</option>
-                <option value="BTVT-ED-ET">BTVT-ED Electronics Technology</option>
-                 <option value="BTVT-ED-FSM">BTVT-ED Food & Service Management</option>
-                 <option value="BTVT-ED-MT">BTVT-ED Mechanical Technology</option>
+                <option value="BTVT-ED-ELX">BTVT-ED Electronics Technology</option>
+                <option value="BTVT-ED-FSM">BTVT-ED Food & Service Management</option>
+                <option value="BTVT-ED-MT">BTVT-ED Mechanical Technology</option>
               </select>
             </div>
             <div class="form-col">
@@ -149,8 +160,8 @@
                 <option value="" disabled selected>Select section</option>
                 <option value="A">A</option>
                 <option value="B">B</option>
-                <option value="B">c</option>
-                <option value="B">D</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
               </select>
             </div>
           </div>
@@ -207,26 +218,42 @@
   </div>
 
   <!-- ===== FORGOT PASSWORD MODAL ===== -->
-<div id="forgot-modal" class="signup-float" hidden>
-  <div class="signup-card">
-    <h2><i class="fas fa-unlock-alt"></i> Reset Password</h2>
+  <div id="forgot-modal" class="signup-float" hidden>
+    <div class="signup-card">
+      <h2><i class="fas fa-unlock-alt"></i> Reset Password</h2>
 
-    <form id="forgot-form" class="auth-form" novalidate>
-      <div class="form-group">
-        <label for="forgot-email">Enter your email</label>
-        <input type="email" id="forgot-email" class="form-control" required autocomplete="email" />
-      </div>
+      <form id="forgot-form" class="auth-form" novalidate>
+        <div class="form-group">
+          <label for="forgot-email">Enter your email</label>
+          <input type="email" id="forgot-email" class="form-control" required autocomplete="email" />
+        </div>
 
-      <button type="submit" class="btn btn-secondary submit-btn">
-        <i class="fas fa-paper-plane"></i> Send Reset Link
-      </button>
+        <button type="submit" class="btn btn-secondary submit-btn">
+          <i class="fas fa-paper-plane"></i> Send Reset Link
+        </button>
 
-      <div class="auth-back">
-        <a href="#" class="close-forgot"><i class="fas fa-arrow-left"></i> Back to Login</a>
-      </div>
-    </form>
+        <div class="auth-back">
+          <a href="#" class="close-forgot"><i class="fas fa-arrow-left"></i> Back to Login</a>
+        </div>
+      </form>
+    </div>
   </div>
-</div>
+
+  <!-- READY TO LOG IN MODAL -->
+  <div id="readyLoginModal" class="ready-modal" hidden>
+    <div class="ready-card">
+      <div class="ready-circle">
+        <div class="ready-check">✓</div>
+      </div>
+      <h2 class="ready-title">Account created!</h2>
+      <p class="ready-text">
+        You’re now <strong>ready to log in</strong> as <strong>Student</strong>.
+      </p>
+      <button id="readyLoginBtn" class="ready-btn">
+        Continue to Login
+      </button>
+    </div>
+  </div>
 
   <!-- Scripts (modules) -->
   <script type="module" src="js/firebase.js"></script>

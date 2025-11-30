@@ -30,7 +30,7 @@
         <!-- Subjects Taken tab -->
         <a href="#" class="nav-item" data-page="subjects">
           <i class="fas fa-book-open"></i>
-          <span>Subjects Taken</span>
+          <span>Subjects</span>
         </a>
 
         <a href="#" class="nav-item" data-page="messages">
@@ -63,13 +63,14 @@
       <header class="header">
         <div class="header-title" id="pageTitle">My Grades</div>
         <div class="header-actions">
+          <!-- 🔔 Notifications button (badge will be controlled by JS) -->
           <button
             class="header-action-btn"
             title="Notifications"
             id="notificationsBtn"
           >
             <i class="fas fa-bell"></i>
-            <span class="notification-badge" id="notificationsCount">2</span>
+            <span class="notification-badge" id="notificationsCount" hidden>0</span>
           </button>
           <button
             class="header-action-btn"
@@ -134,7 +135,7 @@
             <!-- Results -->
             <div id="summaryCard" class="summary-card">
               <div class="summary-meta" id="summaryMeta">
-                Select Year Level & Semester then click Generate.
+                Select Year Level &amp; Semester then click Generate.
               </div>
 
               <div class="table-container summary-compact">
@@ -181,7 +182,7 @@
         >
           <div class="content-section">
             <div class="section-header">
-              <div class="section-title">Subjects Taken</div>
+              <div class="section-title">Subjects</div>
             </div>
 
             <!-- Filters para Year & Sem -->
@@ -217,16 +218,16 @@
             <!-- Table ng subjects -->
             <div class="table-container">
               <table class="summary-table" id="subjectsTable">
-               <thead>
-  <tr>
-    <th>Course Name</th>
-    <th>Course Code</th>
-    <th>Units</th>
-    <th>Year</th>
-    <th>Semester</th>
-    <th>Actions</th>
-  </tr>
-</thead>
+                <thead>
+                  <tr>
+                    <th>Course Name</th>
+                    <th>Course Code</th>
+                    <th>Units</th>
+                    <th>Year</th>
+                    <th>Semester</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
                 <tbody id="subjectsTableBody">
                   <tr data-empty="true">
                     <td colspan="7" class="muted">
@@ -264,7 +265,7 @@
           </div>
         </section>
 
-        <!-- CHAT: Student -> Admin (and Teacher via backend logic) -->
+        <!-- MESSAGES (full page) -->
         <section
           id="messages"
           class="page"
@@ -272,41 +273,43 @@
         >
           <div class="content-section">
             <div class="section-header">
-              <div class="section-title">Chat with Admin</div>
+              <div class="section-title">Messages</div>
+              <div class="section-actions">
+                <span class="muted"
+                  >Direct messages between Teacher, Student and Admin</span>
+              </div>
             </div>
 
-            <div class="chat-panel">
-              <div class="chat-status">
-                <i class="fas fa-shield-alt"></i> Messages are sent to
-                <strong>Admin</strong>.
-              </div>
-
-              <div class="chat-thread" id="chatThread">
-                <div class="no-message-selected">
-                  <i class="fas fa-comments"></i>
-                  <h3>Start chatting with Admin</h3>
-                  <p>Type a message below to begin.</p>
+            <div class="messages-wrap">
+              <!-- Threads -->
+              <div class="thread-list" id="threadList">
+                <div class="muted" id="threadEmpty">
+                  No conversations yet.
                 </div>
               </div>
 
-              <form id="chatForm" class="chat-composer">
-                <textarea
-                  id="chatInput"
-                  class="form-control"
-                  rows="2"
-                  placeholder="Type a message for Admin…"
-                  required
-                ></textarea>
-                <button
-                  class="btn btn-primary"
-                  id="sendChatBtn"
-                  type="submit"
-                >
-                  <i class="fas fa-paper-plane"></i> Send
-                </button>
-              </form>
-
-              <input type="hidden" id="adminUid" />
+              <!-- Conversation -->
+              <div class="chat-panel">
+                <div class="chat-header">
+                  <div class="chat-title" id="chatTitle">
+                    No thread selected
+                  </div>
+                </div>
+                <div class="chat-body" id="chatBody"></div>
+                <div class="chat-footer">
+                  <input
+                    id="chatInput"
+                    class="chat-input"
+                    placeholder="Type a message…"
+                  />
+                  <button
+                    id="chatSend"
+                    class="btn btn-primary chat-send"
+                  >
+                    <i class="fas fa-paper-plane"></i> Send
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -320,6 +323,29 @@
           <div class="content-section">
             <div class="section-header">
               <div class="section-title">Profile</div>
+              <!-- 🔧 Profile actions (hooked in student.js) -->
+              <div class="section-actions">
+                <button
+                  class="btn btn-secondary btn-sm"
+                  id="editProfileBtn"
+                >
+                  <i class="fas fa-pen"></i> Edit
+                </button>
+                <button
+                  class="btn btn-primary btn-sm"
+                  id="saveProfileBtn"
+                  style="display: none;"
+                >
+                  <i class="fas fa-save"></i> Save
+                </button>
+                <button
+                  class="btn btn-secondary btn-sm"
+                  id="cancelProfileBtn"
+                  style="display: none;"
+                >
+                  <i class="fas fa-times"></i> Cancel
+                </button>
+              </div>
             </div>
 
             <div class="profile-header">
@@ -366,7 +392,8 @@
             </div>
 
             <div class="muted" style="margin-top:8px;">
-              To update your profile, contact your program coordinator.
+              You can update your basic details here (name, ID, course, year, section).
+              For other changes, please contact your program coordinator.
             </div>
           </div>
         </section>
@@ -385,6 +412,37 @@
     <i class="fas fa-check-circle"></i>
     <span id="toastMessage">Operation completed successfully</span>
   </div>
+
+    <!-- Toast -->
+  <div
+    id="toast"
+    class="toast"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+  >
+    <i class="fas fa-check-circle"></i>
+    <span id="toastMessage">Operation completed successfully</span>
+  </div>
+
+  <!-- 🔔 Notification Sidebar -->
+  <div id="notifBackdrop" class="notif-backdrop"></div>
+  <aside id="notifSidebar" class="notif-sidebar" aria-hidden="true">
+    <div class="notif-header">
+      <div class="notif-title">
+        <i class="fas fa-bell"></i>
+        <span>Notifications</span>
+      </div>
+      <button id="notifCloseBtn" class="notif-close" aria-label="Close">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="notif-body">
+      <div id="notifList" class="notif-list">
+        <div class="notif-empty">No notifications yet.</div>
+      </div>
+    </div>
+  </aside>
 
   <!-- Firebase + App logic -->
   <script type="module" src="js/firebase.js"></script>

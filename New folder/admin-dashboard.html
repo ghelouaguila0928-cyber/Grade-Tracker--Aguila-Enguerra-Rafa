@@ -53,24 +53,20 @@
       <header class="header">
         <div class="header-title" id="pageTitle">Student Management</div>
         <div class="header-actions">
-          <!-- NOTIFICATION (badge + dropdown) -->
+          <!-- 🔔 NEW notification button (matches admin.js + CSS) -->
           <div class="notif-wrap">
-            <button class="header-action-btn" id="openNotifs" title="Notifications" aria-expanded="false" aria-haspopup="true">
+            <button
+              class="header-action-btn"
+              id="notificationsBtn"
+              title="Notifications"
+              aria-label="Notifications"
+            >
               <i class="fas fa-bell"></i>
-              <span id="notifBadge" class="notification-badge" hidden>0</span>
+              <span id="notificationsCount" class="notification-badge" hidden>0</span>
             </button>
-            <div id="notifMenu" class="notif-menu" hidden>
-              <div class="notif-menu-head">Notifications</div>
-              <div id="notifList" class="notif-list">
-                <div class="muted" id="notifEmpty">No new notifications.</div>
-              </div>
-              <div class="notif-menu-foot">
-                <button id="notifViewAll" class="btn btn-secondary btn-xs">Open Messages</button>
-                <button id="notifMarkRead" class="btn btn-primary btn-xs">Mark all as read</button>
-              </div>
-            </div>
           </div>
 
+          <!-- Sidebar toggle -->
           <button class="header-action-btn" id="toggleSidebar" title="Toggle Sidebar" aria-label="Toggle Sidebar" aria-controls="sidebar">
             <i class="fas fa-bars"></i>
           </button>
@@ -107,7 +103,7 @@
               </div>
             </div>
 
-            <!-- NEW: Course chips for Students -->
+            <!-- Course chips for Students -->
             <div id="studentsCourseButtons" style="margin:6px 0; display:flex; flex-wrap:wrap; gap:6px;">
               <button type="button" class="btn btn-xs btn-chip active" data-course="__ALL__">All Courses</button>
               <button type="button" class="btn btn-xs btn-chip" data-course="BIT">BIT</button>
@@ -494,6 +490,21 @@
       </div>
     </main>
   </div>
+
+  <!-- 🔔 Notification sidebar + backdrop (NEW, matches CSS + admin.js) -->
+  <div class="notif-backdrop" id="notifBackdrop" aria-hidden="true"></div>
+
+  <aside class="notif-sidebar" id="notifSidebar" aria-label="Notifications" aria-hidden="true">
+    <div class="notif-sidebar-header">
+      <h2>Notifications</h2>
+      <button class="close-notif" id="notifCloseBtn" aria-label="Close notifications">&times;</button>
+    </div>
+    <div class="notif-sidebar-body">
+      <div id="notifList" class="notif-list">
+        <div class="muted">No new notifications.</div>
+      </div>
+    </div>
+  </aside>
 
   <!-- Modals -->
   <div class="modal" id="addSectionModal" aria-hidden="true" role="dialog">

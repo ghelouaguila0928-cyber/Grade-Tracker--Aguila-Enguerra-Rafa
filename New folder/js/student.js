@@ -3,6 +3,7 @@ import { auth, db } from "./firebase.js";
 import {
   onAuthStateChanged,
   signOut,
+  updateProfile,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   doc,
@@ -41,6 +42,11 @@ const p_course = document.getElementById("p_course");
 const p_year = document.getElementById("p_year");
 const p_section = document.getElementById("p_section");
 
+// Profile edit controls
+const editProfileBtn = document.getElementById("editProfileBtn");
+const saveProfileBtn = document.getElementById("saveProfileBtn");
+const cancelProfileBtn = document.getElementById("cancelProfileBtn");
+
 // Toast + auth
 const toast = document.getElementById("toast");
 const toastMessage = document.getElementById("toastMessage");
@@ -57,10 +63,59 @@ const totalUnitsEl = document.getElementById("totalUnits");
 const gwaEl = document.getElementById("gwa");
 const summaryMeta = document.getElementById("summaryMeta");
 
-// Chat
-const chatThread = document.getElementById("chatThread");
-const chatForm = document.getElementById("chatForm");
+// Chat UI
+const threadListEl = document.getElementById("threadList");
+const threadEmptyEl = document.getElementById("threadEmpty");
+const chatBody = document.getElementById("chatBody");
+const chatTitle = document.getElementById("chatTitle");
 const chatInput = document.getElementById("chatInput");
+const chatSend = document.getElementById("chatSend");
+
+// Nav items for notif indicators
+const navGrades = document.querySelector('.nav-item[data-page="grades"]');
+const navMessages = document.querySelector('.nav-item[data-page="messages"]');
+
+// Header notifications (bell)
+const notificationsBtn = document.getElementById("notificationsBtn");
+const notificationsCount = document.getElementById("notificationsCount");
+
+// Notification sidebar
+const notifSidebar = document.getElementById("notifSidebar");
+const notifBackdrop = document.getElementById("notifBackdrop");
+const notifList = document.getElementById("notifList");
+const notifCloseBtn = document.getElementById("notifCloseBtn");
+
+/* -------------------- state -------------------- */
+let currentPageId = null;
+let currentProfile = null;
+let currentAuthUser = null;
+
+// notification counters
+let unreadGradesCount = 0;
+let unreadMessagesCount = 0;
+
+// notification list for sidebar
+let notifications = []; // [{ id, type: 'grade'|'message', text, createdAt, read }]
+let notifIdCounter = 0;
+
+// listeners
+let gradesUnsubSubcollection = null;
+let gradesUnsubRoot = null;
+let gradesListenerReadySub = false;
+let gradesListenerReadyRoot = false;
+
+let threadUnsubAdmin = null;
+let adminMessages = [];
+let teacherMessages = [];
+let TEACHER_FOR_CHAT = null;
+let TEACHER_NAME_FOR_CHAT = null;
+let teacherProfileUnsub = null; // teacher profile listener
+
+// current conversation being shown: "admin" or "teacher"
+let activeConversationKey = null;
+
+// presence heartbeat interval
+let presenceInterval = null;
 
 /* -------------------- helpers -------------------- */
 function showToast(msg, type = "success") {
@@ -77,18 +132,189 @@ function showToast(msg, type = "success") {
   }, 2500);
 }
 
+function setNavNotification(navEl, on) {
+  if (!navEl) return;
+  navEl.classList.toggle("has-notif", !!on);
+}
+
+function updateNotificationsUI() {
+  if (!notificationsCount) return;
+  const total = unreadGradesCount + unreadMessagesCount;
+  if (total > 0) {
+    notificationsCount.textContent = String(total);
+    notificationsCount.hidden = false;
+  } else {
+    notificationsCount.hidden = true;
+  }
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    (
+      {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;",
+      }
+    )[c]
+  );
+}
+
+const coerceStr = (v) => (v === undefined || v === null ? "" : String(v));
+
+function setInitials(targetEls, name) {
+  const initials = (name || "ST")
+    .split(" ")
+    .filter(Boolean)
+    .map((n) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase();
+  targetEls.forEach((el) => el && (el.textContent = initials));
+}
+
+/* normalize sender role (admin / teacher / prof / etc.) */
+function getSenderRole(message) {
+  const raw =
+    message.senderRole ??
+    message.role ??
+    message.sender_type ??
+    message.senderType ??
+    message.fromRole ??
+    message.userRole ??
+    "";
+  return String(raw).toLowerCase();
+}
+
+/* ----- shared helpers for year ----- */
+const yearKey = (label) => {
+  const v = String(label ?? "");
+  const m = v.match(/^(\d)/);
+  if (m) return m[1];
+  const low = v.toLowerCase();
+  if (low.includes("first")) return "1";
+  if (low.includes("second")) return "2";
+  if (low.includes("third")) return "3";
+  if (low.includes("fourth")) return "4";
+  if (low.includes("fifth")) return "5";
+  return v.replace(/[^0-9]/g, "") || "";
+};
+
+/* --------- presence helper: set online / offline --------- */
+async function setOnlineStatus(user, isOnline) {
+  if (!user) return;
+  try {
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        online: !!isOnline,
+        lastSeenAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn("[student] setOnlineStatus failed:", e);
+  }
+}
+
+/* -------------------- Notification sidebar -------------------- */
+
+function renderNotifList() {
+  if (!notifList) return;
+
+  if (!notifications.length) {
+    notifList.innerHTML =
+      '<div class="notif-empty">No notifications yet.</div>';
+    return;
+  }
+
+  notifList.innerHTML = notifications
+    .map((n) => {
+      const iconClass = n.type === "grade" ? "grade" : "message";
+      const iconFa =
+        n.type === "grade" ? "fa-clipboard-check" : "fa-comments";
+      const when = n.createdAt
+        ? new Date(n.createdAt).toLocaleString()
+        : "";
+      const unreadClass = n.read ? "" : "unread";
+
+      return `
+        <div class="notif-item ${unreadClass}" data-type="${n.type}">
+          <div class="notif-icon ${iconClass}">
+            <i class="fas ${iconFa}"></i>
+          </div>
+          <div class="notif-content">
+            <div class="notif-text">${escapeHTML(n.text)}</div>
+            <div class="notif-meta">${escapeHTML(when)}</div>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function addNotification(type, text) {
+  notifIdCounter += 1;
+  notifications.unshift({
+    id: notifIdCounter,
+    type,
+    text,
+    createdAt: Date.now(),
+    read: false,
+  });
+  renderNotifList();
+}
+
+function openNotifSidebar() {
+  if (!notifSidebar || !notifBackdrop) return;
+  notifSidebar.classList.add("active");
+  notifBackdrop.classList.add("active");
+
+  // mark all as read when opening
+  notifications = notifications.map((n) => ({ ...n, read: true }));
+  unreadGradesCount = 0;
+  unreadMessagesCount = 0;
+  setNavNotification(navGrades, false);
+  setNavNotification(navMessages, false);
+  updateNotificationsUI();
+  renderNotifList();
+}
+
+function closeNotifSidebar() {
+  if (!notifSidebar || !notifBackdrop) return;
+  notifSidebar.classList.remove("active");
+  notifBackdrop.classList.remove("active");
+}
+
+/* -------------------- Page / Nav -------------------- */
+
 function showPage(id) {
+  currentPageId = id;
   pages.forEach((p) => p.classList.remove("active"));
   const el = document.getElementById(id);
   if (el) el.classList.add("active");
   if (pageTitle) {
     const titleText = {
       grades: "My Grades",
-      subjects: "Subjects Taken",
-      messages: "Chat",
+      subjects: "Subjects",
+      messages: "Messages",
       profile: "Profile",
     }[id] || id;
     pageTitle.textContent = titleText;
+  }
+
+  // Clear notifications for that page
+  if (id === "grades") {
+    unreadGradesCount = 0;
+    setNavNotification(navGrades, false);
+    updateNotificationsUI();
+  }
+  if (id === "messages") {
+    unreadMessagesCount = 0;
+    setNavNotification(navMessages, false);
+    updateNotificationsUI();
   }
 }
 
@@ -105,50 +331,43 @@ navItems.forEach((item) => {
   });
 });
 
-function setInitials(targetEls, name) {
-  const initials = (name || "ST")
-    .split(" ")
-    .filter(Boolean)
-    .map((n) => n[0])
-    .join("")
-    .substring(0, 2)
-    .toUpperCase();
-  targetEls.forEach((el) => el && (el.textContent = initials));
-}
+// Bell & notif sidebar
+notificationsBtn?.addEventListener("click", () => {
+  openNotifSidebar();
+});
 
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, (c) =>
-    (
-      {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;",
-      }
-    )[c]
-  );
-}
-const coerceStr = (v) => (v === undefined || v === null ? "" : String(v));
+notifCloseBtn?.addEventListener("click", () => {
+  closeNotifSidebar();
+});
 
-/* ----- shared helpers for year + thread id ----- */
-const yearKey = (label) => {
-  const v = String(label ?? "");
-  const m = v.match(/^(\d)/);
-  if (m) return m[1];
-  const low = v.toLowerCase();
-  if (low.includes("first")) return "1";
-  if (low.includes("second")) return "2";
-  if (low.includes("third")) return "3";
-  if (low.includes("fourth")) return "4";
-  if (low.includes("fifth")) return "5";
-  return v.replace(/[^0-9]/g, "") || "";
-};
+notifBackdrop?.addEventListener("click", () => {
+  closeNotifSidebar();
+});
 
-const threadIdFor = (a, b) =>
-  String(a) < String(b) ? `${a}__${b}` : `${b}__${a}`;
+// click notif item -> jump to page
+notifList?.addEventListener("click", (e) => {
+  const item = e.target.closest(".notif-item");
+  if (!item) return;
+
+  const type = item.dataset.type;
+
+  navItems.forEach((n) => n.classList.remove("active"));
+
+  if (type === "message") {
+    const chatNav = document.querySelector('.nav-item[data-page="messages"]');
+    chatNav?.classList.add("active");
+    showPage("messages");
+  } else if (type === "grade") {
+    const gradesNav = document.querySelector('.nav-item[data-page="grades"]');
+    gradesNav?.classList.add("active");
+    showPage("grades");
+  }
+
+  closeNotifSidebar();
+});
 
 /* -------------------- Summary of Grades -------------------- */
+
 function computeGWA(rows) {
   let wsum = 0,
     units = 0;
@@ -337,58 +556,272 @@ async function handleGenerate(user) {
   }
 }
 
-/* -------------------- Chat (Student ↔ Admin/Teacher) -------------------- */
+/* -------------------- Chat (Student ↔ Admin / Teacher) -------------------- */
 
-let threadUnsubAdmin = null;
-let threadUnsubTeacher = null;
-let adminMessages = [];
-let teacherMessages = [];
-let TEACHER_FOR_CHAT = null;
+async function getTeacherName(uid) {
+  if (!uid) return "Teacher";
+  try {
+    const s = await getDoc(doc(db, "users", uid));
+    if (s.exists()) {
+      const d = s.data();
+      return (
+        coerceStr(
+          d.name ||
+            d.fullName ||
+            d.displayName ||
+            d.email ||
+            "Teacher"
+        ).trim() || "Teacher"
+      );
+    }
+  } catch (e) {
+    console.warn("[student] getTeacherName failed:", e);
+  }
+  return "Teacher";
+}
 
-/* 🔴 NEW: store current profile para magamit sa subjectsTaken */
-let currentProfile = null;
+// real-time listener for teacher profile
+function subscribeToTeacherProfile(uid) {
+  if (teacherProfileUnsub) {
+    teacherProfileUnsub();
+    teacherProfileUnsub = null;
+  }
 
-function renderChat(messages, currentUid) {
-  if (!chatThread) return;
+  if (!uid) return;
 
-  if (!messages.length) {
-    chatThread.innerHTML = `
-      <div class="no-message-selected">
-        <i class="fas fa-comments"></i>
-        <h3>No messages yet</h3>
-        <p>Say hello 👋</p>
+  const ref = doc(db, "users", uid);
+  teacherProfileUnsub = onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) return;
+      const d = snap.data() || {};
+      TEACHER_NAME_FOR_CHAT =
+        coerceStr(
+          d.name ||
+            d.fullName ||
+            d.displayName ||
+            d.email ||
+            "Teacher"
+        ).trim() || "Teacher";
+
+      // refresh chat UI
+      syncChatUI();
+    },
+    (err) => {
+      console.warn("[student] teacher profile onSnapshot error:", err);
+    }
+  );
+}
+
+// no status text element in this HTML, keep as no-op
+function updateChatStatus() {}
+
+function renderActiveConversationThread() {
+  if (!chatBody) return;
+
+  let msgs = [];
+  if (activeConversationKey === "teacher") {
+    msgs = teacherMessages;
+  } else if (activeConversationKey === "admin") {
+    msgs = adminMessages;
+  } else {
+    chatBody.innerHTML = `
+      <div class="muted" style="padding:12px;">
+        No thread selected.
       </div>`;
     return;
   }
 
-  chatThread.innerHTML = `
+  if (!msgs.length) {
+    chatBody.innerHTML = `
+      <div class="muted" style="padding:12px;">
+        No messages yet. Type a message below to start the conversation.
+      </div>`;
+    return;
+  }
+
+  const currentUid = auth.currentUser?.uid;
+
+  chatBody.innerHTML = `
     <div class="thread">
-      ${messages
+      ${msgs
         .map((m) => {
+          const role = getSenderRole(m);
           const mine =
             m.senderId === currentUid ||
             m.senderUid === currentUid ||
-            m.senderRole === "student";
+            role === "student";
+
+          const isTeacherSender =
+            TEACHER_FOR_CHAT &&
+            (m.senderId === TEACHER_FOR_CHAT ||
+              m.senderUid === TEACHER_FOR_CHAT);
+
           const whenSrc = m.createdAt?.toDate
             ? m.createdAt.toDate()
             : new Date();
           const when = whenSrc.toLocaleString();
+
+          let senderLabel = "User";
+
+          if (mine) {
+            senderLabel = "You";
+          } else if (isTeacherSender || role === "teacher" || role === "prof") {
+            senderLabel = TEACHER_NAME_FOR_CHAT || m.senderName || "Teacher";
+          } else if (role === "admin") {
+            senderLabel = "Admin";
+          } else {
+            senderLabel = "Staff";
+          }
+
           return `
-          <div class="bubble ${mine ? "me" : "them"}">
-            <div class="bubble-body">${escapeHTML(
-              m.text || ""
-            ).replace(/\n/g, "<br/>")}</div>
-            <div class="bubble-meta">${when}</div>
-          </div>
-        `;
+            <div class="bubble ${mine ? "me" : "them"}">
+              <div class="bubble-header">${escapeHTML(senderLabel)}</div>
+              <div class="bubble-body">${escapeHTML(
+                m.text || ""
+              ).replace(/\n/g, "<br/>")}</div>
+              <div class="bubble-meta">${when}</div>
+            </div>
+          `;
         })
         .join("")}
     </div>
   `;
-  chatThread.scrollTop = chatThread.scrollHeight;
+
+  chatBody.scrollTop = chatBody.scrollHeight;
 }
 
-async function ensureThreadDoc(user, subjectText = "Conversation with Admin") {
+function setActiveConversation(key) {
+  activeConversationKey = key;
+
+  if (threadListEl) {
+    const items = threadListEl.querySelectorAll(".thread-item");
+    items.forEach((item) => {
+      item.classList.toggle("active", item.dataset.key === key);
+    });
+  }
+
+  if (chatTitle) {
+    if (key === "teacher") {
+      chatTitle.textContent = TEACHER_NAME_FOR_CHAT || "Teacher";
+    } else if (key === "admin") {
+      chatTitle.textContent = "Admin";
+    } else {
+      chatTitle.textContent = "No thread selected";
+    }
+  }
+
+  updateChatStatus();
+  renderActiveConversationThread();
+}
+
+function renderChatContacts() {
+  if (!threadListEl) return;
+
+  const contacts = [];
+
+  const lastAdmin = adminMessages[adminMessages.length - 1] || null;
+  contacts.push({
+    key: "admin",
+    label: "Admin",
+    type: "admin",
+    lastText: lastAdmin?.text || "",
+    lastAt: lastAdmin?.createdAt?.toDate
+      ? lastAdmin.createdAt.toDate()
+      : null,
+  });
+
+  if (TEACHER_FOR_CHAT || teacherMessages.length > 0) {
+    const lastTeacher =
+      teacherMessages[teacherMessages.length - 1] || null;
+    contacts.push({
+      key: "teacher",
+      label: TEACHER_NAME_FOR_CHAT || "Teacher",
+      type: "teacher",
+      lastText: lastTeacher?.text || "",
+      lastAt: lastTeacher?.createdAt?.toDate
+        ? lastTeacher.createdAt.toDate()
+        : null,
+    });
+  }
+
+  contacts.sort(
+    (a, b) => (b.lastAt?.getTime() || 0) - (a.lastAt?.getTime() || 0)
+  );
+
+  threadListEl.innerHTML = "";
+
+  if (threadEmptyEl) {
+    threadEmptyEl.style.display = contacts.length ? "none" : "";
+  }
+
+  if (!contacts.length) {
+    if (threadEmptyEl) {
+      threadListEl.appendChild(threadEmptyEl);
+    } else {
+      const div = document.createElement("div");
+      div.className = "muted";
+      div.textContent = "No conversations yet.";
+      threadListEl.appendChild(div);
+    }
+    return;
+  }
+
+  contacts.forEach((c) => {
+    const div = document.createElement("div");
+    div.className = "thread-item";
+    if (
+      activeConversationKey === c.key ||
+      (!activeConversationKey && c.key === "admin")
+    ) {
+      div.classList.add("active");
+    }
+    div.dataset.key = c.key;
+    div.dataset.type = c.type;
+
+    const time = c.lastAt
+      ? c.lastAt.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+        })
+      : "";
+
+    const preview = c.lastText
+      ? escapeHTML(c.lastText.slice(0, 60))
+      : "No messages yet";
+
+    div.innerHTML = `
+      <div class="message-header">
+        <div class="message-sender">${escapeHTML(c.label)}</div>
+        <div class="message-time">${escapeHTML(time)}</div>
+      </div>
+      <div class="message-preview">${preview}</div>
+    `;
+
+    div.addEventListener("click", () => {
+      setActiveConversation(c.key);
+    });
+
+    threadListEl.appendChild(div);
+  });
+
+  if (!activeConversationKey && contacts.length) {
+    setActiveConversation(contacts[0].key);
+  } else {
+    renderActiveConversationThread();
+  }
+}
+
+function syncChatUI() {
+  renderChatContacts();
+}
+
+/* Firestore thread helpers */
+
+async function ensureAdminThreadDoc(
+  user,
+  subjectText = "Conversation"
+) {
   const tRef = doc(db, "threads", user.uid);
   const tSnap = await getDoc(tRef);
   if (!tSnap.exists()) {
@@ -398,9 +831,15 @@ async function ensureThreadDoc(user, subjectText = "Conversation with Admin") {
         studentUid: user.uid,
         studentEmail: user.email || "",
         studentName: user.displayName || "",
-        lastMessage: { subject: subjectText, text: "", sender: user.uid },
+        lastMessage: {
+          subject: subjectText,
+          text: "",
+          senderId: user.uid,
+          senderRole: "student",
+        },
         updatedAt: serverTimestamp(),
         lastSender: user.uid,
+        lastSenderRole: "student",
         unread: false,
       },
       { merge: true }
@@ -410,7 +849,7 @@ async function ensureThreadDoc(user, subjectText = "Conversation with Admin") {
 }
 
 async function sendMessageToAdmin(user, text) {
-  const tRef = await ensureThreadDoc(user);
+  const tRef = await ensureAdminThreadDoc(user);
 
   await addDoc(collection(tRef, "messages"), {
     senderId: user.uid,
@@ -422,8 +861,14 @@ async function sendMessageToAdmin(user, text) {
   await setDoc(
     tRef,
     {
-      lastMessage: { subject: "Message", text, sender: user.uid },
+      lastMessage: {
+        subject: "Message",
+        text,
+        senderId: user.uid,
+        senderRole: "student",
+      },
       lastSender: user.uid,
+      lastSenderRole: "student",
       updatedAt: serverTimestamp(),
       unread: true,
     },
@@ -431,98 +876,90 @@ async function sendMessageToAdmin(user, text) {
   );
 }
 
+// Teacher convo uses same thread
 async function sendMessageToTeacher(user, text) {
-  if (!TEACHER_FOR_CHAT) {
-    console.warn("No assigned teacher for this student.");
-    return;
-  }
-
-  const tid = threadIdFor(user.uid, TEACHER_FOR_CHAT);
-  const tRef = doc(db, "dmThreads", tid);
-
-  await setDoc(
-    tRef,
-    {
-      participants: [user.uid, TEACHER_FOR_CHAT],
-      teacherUid: TEACHER_FOR_CHAT,
-      studentUid: user.uid,
-      studentName: user.displayName || "",
-      lastAt: serverTimestamp(),
-      lastMessage: text,
-      lastSenderUid: user.uid,
-    },
-    { merge: true }
-  );
-
-  await addDoc(collection(db, "dmThreads", tid, "messages"), {
-    text,
-    createdAt: serverTimestamp(),
-    senderUid: user.uid,
-    senderRole: "student",
-  });
+  return sendMessageToAdmin(user, text);
 }
 
-function bindRealtimeThread(user) {
+function bindRealtimeThreads(user) {
   if (!user) return;
 
   if (threadUnsubAdmin) threadUnsubAdmin();
-  if (threadUnsubTeacher) threadUnsubTeacher();
   adminMessages = [];
   teacherMessages = [];
 
-  const mergeAndRender = () => {
-    const all = [...adminMessages, ...teacherMessages].sort(
-      (a, b) =>
-        (a.createdAt?.toMillis?.() ?? 0) -
-        (b.createdAt?.toMillis?.() ?? 0)
-    );
-    renderChat(all, user.uid);
-  };
-
-  const msgsAdminQ = query(
+  const msgsQ = query(
     collection(db, "threads", user.uid, "messages"),
     orderBy("createdAt", "asc")
   );
+
   threadUnsubAdmin = onSnapshot(
-    msgsAdminQ,
+    msgsQ,
     (qs) => {
-      adminMessages = qs.docs.map((d) => ({
+      const all = qs.docs.map((d) => ({
         id: d.id,
         ...d.data(),
       }));
-      mergeAndRender();
+
+      adminMessages = all.filter((m) => {
+        const role = getSenderRole(m);
+        return role === "admin" || role === "student" || !role;
+      });
+
+      teacherMessages = all.filter((m) => {
+        const role = getSenderRole(m);
+        return role === "teacher" || role === "prof" || role === "student";
+      });
+
+      if (!TEACHER_FOR_CHAT) {
+        teacherMessages = all;
+      }
+
+      // 🔔 CHAT NOTIFICATIONS
+      const changes = qs.docChanges();
+      const currentUid = auth.currentUser?.uid;
+      changes.forEach((change) => {
+        if (change.type !== "added") return;
+        const m = { id: change.doc.id, ...change.doc.data() };
+        const role = getSenderRole(m);
+        const fromTeacherOrAdmin =
+          role === "teacher" || role === "prof" || role === "admin";
+        const fromMe =
+          m.senderId === currentUid || m.senderUid === currentUid;
+        if (!fromTeacherOrAdmin || fromMe) return;
+
+        let fromLabel = "Admin";
+        if (role === "teacher" || role === "prof") {
+          fromLabel = TEACHER_NAME_FOR_CHAT || "Teacher";
+        }
+
+        if (currentPageId !== "messages") {
+          unreadMessagesCount++;
+          setNavNotification(navMessages, unreadMessagesCount > 0);
+          updateNotificationsUI();
+          addNotification("message", `New message from ${fromLabel}`);
+          showToast(`New message from ${fromLabel}`);
+        } else {
+          if (
+            (activeConversationKey === "admin" &&
+              (role === "teacher" || role === "prof")) ||
+            (activeConversationKey === "teacher" && role === "admin")
+          ) {
+            unreadMessagesCount++;
+            setNavNotification(navMessages, unreadMessagesCount > 0);
+            updateNotificationsUI();
+            addNotification("message", `New message from ${fromLabel}`);
+            showToast(`New message from ${fromLabel}`);
+          }
+        }
+      });
+
+      syncChatUI();
     },
     (err) => {
-      console.error("[student] admin thread snapshot error:", err);
+      console.error("[student] thread snapshot error:", err);
     }
   );
-
-  if (TEACHER_FOR_CHAT) {
-    const tid = threadIdFor(user.uid, TEACHER_FOR_CHAT);
-    const msgsTeacherQ = query(
-      collection(db, "dmThreads", tid, "messages"),
-      orderBy("createdAt", "asc")
-    );
-    threadUnsubTeacher = onSnapshot(
-      msgsTeacherQ,
-      (qs) => {
-        teacherMessages = qs.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        }));
-        mergeAndRender();
-      },
-      (err) => {
-        console.error(
-          "[student] teacher thread snapshot error:",
-          err
-        );
-      }
-    );
-  } else {
-    teacherMessages = [];
-    mergeAndRender();
-  }
 }
 
 /* -------------------- Assigned Teacher lookup -------------------- */
@@ -570,7 +1007,6 @@ async function findAssignedTeacherForStudent(profileData) {
 
 /* -------------------- Profile hydrate -------------------- */
 
-// only backfill if NO document yet; para hindi masapawan ang data galing signup
 async function backfillEmptyProfile(user, data) {
   if (data) return null;
 
@@ -598,7 +1034,6 @@ function applyProfileToUI(data, user) {
     data?.studentId ?? data?.studentIdNumber ?? data?.id ?? "—"
   ).trim();
 
-  // ---------- SMART COURSE DETECTION ----------
   const KNOWN_COURSES = [
     "Computer Programming",
     "Food Service Management",
@@ -615,12 +1050,10 @@ function applyProfileToUI(data, user) {
 
   let course = "";
 
-  // 1) direct fields
   if (data) {
     course = coerceStr(data.course ?? data.program ?? "").trim();
   }
 
-  // 2) by key name
   if (!course && data && typeof data === "object") {
     const keys = Object.keys(data);
     for (const k of keys) {
@@ -641,7 +1074,6 @@ function applyProfileToUI(data, user) {
     }
   }
 
-  // 3) scan all values, match against known course list
   if (!course && data && typeof data === "object") {
     const lowerKnown = KNOWN_COURSES.map((c) => c.toLowerCase());
     for (const val of Object.values(data)) {
@@ -656,24 +1088,23 @@ function applyProfileToUI(data, user) {
     }
   }
 
-  // 🔧 normalize codes / variants to full course names
   if (course) {
     const courseMap = {
-      "cp": "Computer Programming",
+      cp: "Computer Programming",
       "computer programming": "Computer Programming",
 
-      "fsm": "Food Service Management",
+      fsm: "Food Service Management",
       "food service management": "Food Service Management",
 
-      "et": "Electronics Technology",
+      et: "Electronics Technology",
       "electronics technology": "Electronics Technology",
 
       "electrical technology": "Electrical Technology",
       "elect tech": "Electrical Technology",
       "electrical tech": "Electrical Technology",
 
-      "at": "Automotive Technology",
-      "auto": "Automotive Technology",
+      at: "Automotive Technology",
+      auto: "Automotive Technology",
       "auto tech": "Automotive Technology",
       "automotive technology": "Automotive Technology",
     };
@@ -724,7 +1155,6 @@ function applyProfileToUI(data, user) {
     selectYearLevel.value = year;
   }
 
-  // 🔴 store current profile for subjectsTaken metadata
   currentProfile = {
     ...(data || {}),
     name,
@@ -735,6 +1165,124 @@ function applyProfileToUI(data, user) {
     studentId,
   };
 }
+
+/* -------------------- Profile Edit -------------------- */
+
+let profileEditMode = false;
+
+function enterProfileEdit() {
+  if (!currentProfile || profileEditMode) return;
+  profileEditMode = true;
+
+  if (p_name) {
+    p_name.innerHTML = `<input type="text" id="edit_name" class="form-control" value="${escapeHTML(
+      currentProfile.name || ""
+    )}" />`;
+  }
+  if (p_studentId) {
+    p_studentId.innerHTML = `<input type="text" id="edit_studentId" class="form-control" value="${escapeHTML(
+      currentProfile.studentId || ""
+    )}" />`;
+  }
+  if (p_course) {
+    p_course.innerHTML = `<input type="text" id="edit_course" class="form-control" value="${escapeHTML(
+      currentProfile.course || ""
+    )}" />`;
+  }
+  if (p_year) {
+    p_year.innerHTML = `<input type="text" id="edit_year" class="form-control" value="${escapeHTML(
+      currentProfile.year || ""
+    )}" />`;
+  }
+  if (p_section) {
+    p_section.innerHTML = `<input type="text" id="edit_section" class="form-control" value="${escapeHTML(
+      currentProfile.section || ""
+    )}" />`;
+  }
+
+  if (editProfileBtn) editProfileBtn.style.display = "none";
+  if (saveProfileBtn) saveProfileBtn.style.display = "";
+  if (cancelProfileBtn) cancelProfileBtn.style.display = "";
+}
+
+function exitProfileEdit(reset = false) {
+  profileEditMode = false;
+
+  if (reset && currentProfile && currentAuthUser) {
+    applyProfileToUI(currentProfile, currentAuthUser);
+  }
+
+  if (editProfileBtn) editProfileBtn.style.display = "";
+  if (saveProfileBtn) saveProfileBtn.style.display = "none";
+  if (cancelProfileBtn) cancelProfileBtn.style.display = "none";
+}
+
+async function saveProfileChanges() {
+  if (!currentProfile || !currentAuthUser) return;
+
+  const nameInput = document.getElementById("edit_name");
+  const idInput = document.getElementById("edit_studentId");
+  const courseInput = document.getElementById("edit_course");
+  const yearInput = document.getElementById("edit_year");
+  const sectionInput = document.getElementById("edit_section");
+
+  const name = (nameInput?.value || "").trim() || "Student";
+  const studentId = (idInput?.value || "").trim();
+  const course = (courseInput?.value || "").trim();
+  const year = (yearInput?.value || "").trim();
+  const section = (sectionInput?.value || "").trim();
+
+  try {
+    const ref = doc(db, "users", currentAuthUser.uid);
+    await setDoc(
+      ref,
+      {
+        name,
+        studentId,
+        studentIdNumber: studentId,
+        course,
+        program: course,
+        year,
+        yearLevel: year,
+        section,
+        classSection: section,
+      },
+      { merge: true }
+    );
+
+    try {
+      await updateProfile(currentAuthUser, { displayName: name });
+    } catch (e) {
+      console.warn("updateProfile failed:", e);
+    }
+
+    currentProfile = {
+      ...currentProfile,
+      name,
+      studentId,
+      course,
+      year,
+      section,
+    };
+
+    applyProfileToUI(currentProfile, currentAuthUser);
+    showToast("Profile updated.");
+    exitProfileEdit(false);
+  } catch (err) {
+    console.error("saveProfileChanges error:", err);
+    showToast("Failed to update profile.", "error");
+  }
+}
+
+editProfileBtn?.addEventListener("click", () => {
+  enterProfileEdit();
+});
+saveProfileBtn?.addEventListener("click", () => {
+  saveProfileChanges();
+});
+cancelProfileBtn?.addEventListener("click", () => {
+  exitProfileEdit(true);
+});
 
 /* -------------------- SUBJECTS TAKEN (filter + edit/delete) -------------------- */
 
@@ -767,7 +1315,6 @@ function initSubjectsTakenFeature(user) {
     </tr>
   `;
 
-  // Add Subject row (unsaved row, only in DOM)
   addSubjectRowBtn?.addEventListener("click", () => {
     const emptyRow =
       subjectsTableBody.querySelector('tr[data-empty="true"]');
@@ -798,13 +1345,11 @@ function initSubjectsTakenFeature(user) {
     subjectsTableBody.appendChild(tr);
   });
 
-  // Clear button
   clearSubjectsBtn?.addEventListener("click", () => {
     subjectsTableBody.innerHTML = getEmptyRowHtml();
     showToast("Subjects list cleared.");
   });
 
-  // SAVE to Firestore all input rows (no status field sa UI, pero may status sa DB)
   saveSubjectsBtn?.addEventListener("click", async () => {
     const rows = Array.from(
       subjectsTableBody.querySelectorAll("tr")
@@ -815,7 +1360,6 @@ function initSubjectsTakenFeature(user) {
       if (row.dataset.empty === "true") return;
 
       const inputs = row.querySelectorAll("input");
-      // If no inputs, it's already a saved row → skip
       if (!inputs.length) return;
 
       const courseName = inputs[0].value.trim();
@@ -842,22 +1386,18 @@ function initSubjectsTakenFeature(user) {
         courseName,
         courseCode,
         units,
-        // main fields used by teacher portal
         yearLevel: year || studentYear,
         semester: sem,
-        // duplicate for student-side filtering
         year: year || studentYear,
         sem,
         createdAt: serverTimestamp(),
-
-        // 🔴 NEW: metadata para sa admin/teacher queries
         studentUid: user.uid,
         studentName:
           user.displayName || profile.name || "",
         course: studentCourse,
         section: studentSection,
         studentId: profile.studentId || "",
-        status: "Pending", // hidden sa UI pero pwedeng i-filter ng admin/teacher
+        status: "Pending",
       });
     });
 
@@ -884,7 +1424,6 @@ function initSubjectsTakenFeature(user) {
     }
   });
 
-  // Load subjects filtered by year + sem
   async function loadSubjects() {
     const selectedYear = subjectsYearLevel.value;
     const selectedSem = subjectsSem.value;
@@ -941,7 +1480,6 @@ function initSubjectsTakenFeature(user) {
     });
   }
 
-  // Event delegation for edit/delete
   subjectsTableBody.addEventListener("click", async (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
@@ -949,11 +1487,9 @@ function initSubjectsTakenFeature(user) {
     const tr = btn.closest("tr");
     if (!tr || tr.dataset.empty === "true") return;
 
-    // DELETE (saved row or unsaved input row)
     if (btn.classList.contains("btn-delete")) {
       const docId = tr.dataset.id;
 
-      // If no docId → unsaved row → just remove from DOM
       if (!docId) {
         tr.remove();
         if (!subjectsTableBody.querySelector("tr")) {
@@ -983,7 +1519,6 @@ function initSubjectsTakenFeature(user) {
       return;
     }
 
-    // EDIT → convert cells to inputs (no status sa UI)
     if (btn.classList.contains("btn-edit")) {
       const nameCell = tr.querySelector(".cell-name");
       const codeCell = tr.querySelector(".cell-code");
@@ -1010,7 +1545,6 @@ function initSubjectsTakenFeature(user) {
       return;
     }
 
-    // SAVE edited row (no status sa UI, pero status field pwede manatili sa DB)
     if (btn.classList.contains("btn-save")) {
       const docId = tr.dataset.id;
       if (!docId) return;
@@ -1056,7 +1590,6 @@ function initSubjectsTakenFeature(user) {
     }
   });
 
-  // Reload when filters change
   subjectsYearLevel.addEventListener("change", () => {
     loadSubjects().catch(console.error);
   });
@@ -1064,21 +1597,146 @@ function initSubjectsTakenFeature(user) {
     loadSubjects().catch(console.error);
   });
 
-  // Initial load
   loadSubjects().catch(console.error);
 }
 
-/* -------------------- Auth guard -------------------- */
+/* -------------------- Grades real-time notifications -------------------- */
+
+// central handler kapag may nakita tayong change sa kahit anong grades source
+async function handleGradeChange(user, recRaw) {
+  const rec = normalizeGrade(recRaw || {});
+  const subj =
+    (rec.title && rec.title !== "—" && rec.title) ||
+    rec.code ||
+    "a subject";
+
+  // 🔔 laging mag-add ng notification + toast
+  addNotification("grade", `Your grade in ${subj} was updated.`);
+  showToast(`Your grade in ${subj} was updated.`);
+
+  // badge sa bell + sidebar only kapag HINDI nasa "My Grades" page
+  if (currentPageId !== "grades") {
+    unreadGradesCount++;
+    setNavNotification(navGrades, unreadGradesCount > 0);
+    updateNotificationsUI();
+  }
+
+  // auto-refresh summary table kung same year & sem ang kasalukuyang view
+  if (selectYearLevel && selectSem && currentPageId === "grades") {
+    const curYear = selectYearLevel.value;
+    const curSem = selectSem.value;
+    if (rec.yearLevel && rec.semester) {
+      if (
+        String(rec.yearLevel) === String(curYear) &&
+        String(rec.semester) === String(curSem)
+      ) {
+        try {
+          const rows = await fetchGradesForTerm(
+            user,
+            rec.yearLevel,
+            rec.semester
+          );
+          renderSummary(rows, rec.yearLevel, rec.semester);
+        } catch (e) {
+          console.warn("auto-refresh summary failed:", e);
+        }
+      }
+    }
+  }
+}
+
+function bindGradesListener(user) {
+  // clean existing listeners
+  if (gradesUnsubSubcollection) gradesUnsubSubcollection();
+  if (gradesUnsubRoot) gradesUnsubRoot();
+  gradesListenerReadySub = false;
+  gradesListenerReadyRoot = false;
+
+  const subColRef = collection(db, "users", user.uid, "grades");
+  const rootGradesRef = collection(db, "grades");
+
+  // listener sa users/{uid}/grades
+  gradesUnsubSubcollection = onSnapshot(
+    subColRef,
+    (snap) => {
+      if (!gradesListenerReadySub) {
+        gradesListenerReadySub = true;
+        return;
+      }
+      snap.docChanges().forEach((change) => {
+        if (change.type !== "added" && change.type !== "modified") return;
+        const data = change.doc.data();
+        handleGradeChange(user, data);
+      });
+    },
+    (err) => {
+      console.error("[student] grades subcollection snapshot error:", err);
+    }
+  );
+
+  // listener sa root "grades" na may studentUid == current user
+  const rootQuery = query(rootGradesRef, where("studentUid", "==", user.uid));
+  gradesUnsubRoot = onSnapshot(
+    rootQuery,
+    (snap) => {
+      if (!gradesListenerReadyRoot) {
+        gradesListenerReadyRoot = true;
+        return;
+      }
+      snap.docChanges().forEach((change) => {
+        if (change.type !== "added" && change.type !== "modified") return;
+        const data = change.doc.data();
+        handleGradeChange(user, data);
+      });
+    },
+    (err) => {
+      console.error("[student] grades root snapshot error:", err);
+    }
+  );
+}
+
+/* -------------------- Auth guard + presence -------------------- */
+
+// LOGOUT BUTTON: mark offline muna bago signOut
 logoutBtn?.addEventListener("click", async () => {
+  if (auth.currentUser) {
+    await setOnlineStatus(auth.currentUser, false);
+  }
   await signOut(auth);
   window.location.href = "auth.html";
 });
 
 onAuthStateChanged(auth, async (user) => {
   if (!user) {
+    // user not signed in
+    currentAuthUser = null;
+    if (presenceInterval) {
+      clearInterval(presenceInterval);
+      presenceInterval = null;
+    }
     window.location.href = "auth.html";
     return;
   }
+
+  currentAuthUser = user;
+
+  // 🔴 Presence: mark online + heartbeat
+  await setOnlineStatus(user, true);
+
+  if (presenceInterval) clearInterval(presenceInterval);
+  presenceInterval = setInterval(() => {
+    // keep lastSeenAt fresh while page is open
+    setOnlineStatus(auth.currentUser, true);
+  }, 60 * 1000); // every 60s
+
+  window.addEventListener("beforeunload", () => {
+    if (presenceInterval) {
+      clearInterval(presenceInterval);
+      presenceInterval = null;
+    }
+    // best effort, may or may not finish on unload
+    setOnlineStatus(auth.currentUser, false);
+  });
 
   printSummaryBtn?.addEventListener("click", () => window.print());
   generateSummaryBtn?.addEventListener("click", async () => {
@@ -1098,7 +1756,6 @@ onAuthStateChanged(auth, async (user) => {
 
     applyProfileToUI(data, user);
 
-    // Init Subjects Taken feature
     initSubjectsTakenFeature(user);
 
     const assigned = await findAssignedTeacherForStudent(
@@ -1106,28 +1763,46 @@ onAuthStateChanged(auth, async (user) => {
     );
     TEACHER_FOR_CHAT = assigned?.teacherUid || null;
 
-    await ensureThreadDoc(user);
-    bindRealtimeThread(user);
+    if (TEACHER_FOR_CHAT) {
+      TEACHER_NAME_FOR_CHAT = await getTeacherName(
+        TEACHER_FOR_CHAT
+      );
+      subscribeToTeacherProfile(TEACHER_FOR_CHAT);
+    }
 
-    // multiple messages allowed
-    chatForm?.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    await ensureAdminThreadDoc(user);
+
+    bindRealtimeThreads(user);
+    bindGradesListener(user);
+
+    const handleSend = async () => {
       const me = auth.currentUser;
       const text = (chatInput?.value || "").trim();
 
-      if (!me)
-        return showToast("You are not signed in.", "error");
+      if (!me) return showToast("You are not signed in.", "error");
       if (!text) return;
 
       try {
-        await sendMessageToAdmin(me, text);
-        if (TEACHER_FOR_CHAT) {
+        if (
+          activeConversationKey === "teacher" &&
+          TEACHER_FOR_CHAT
+        ) {
           await sendMessageToTeacher(me, text);
+        } else {
+          await sendMessageToAdmin(me, text);
         }
         chatInput.value = "";
       } catch (err) {
         console.error("send message failed:", err);
         showToast("Failed to send message.", "error");
+      }
+    };
+
+    chatSend?.addEventListener("click", handleSend);
+    chatInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
       }
     });
   } catch (err) {
@@ -1135,8 +1810,17 @@ onAuthStateChanged(auth, async (user) => {
     applyProfileToUI(null, user);
 
     try {
-      await ensureThreadDoc(user);
-      bindRealtimeThread(user);
-    } catch {}
+      await ensureAdminThreadDoc(user);
+      bindRealtimeThreads(user);
+      bindGradesListener(user);
+    } catch (e) {
+      console.error(e);
+    }
   }
+
+  if (!currentPageId) {
+    showPage("grades");
+  }
+
+  renderNotifList();
 });
