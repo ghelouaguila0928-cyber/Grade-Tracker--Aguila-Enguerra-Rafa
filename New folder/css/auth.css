@@ -209,6 +209,37 @@ input[type="password"] { -webkit-text-security: none; appearance: none; }
   width: min(500px, 94%); background: rgba(255,255,255,0.96); border-radius: var(--radius);
   box-shadow: 0 10px 25px rgba(0,0,0,0.25); padding: 28px 26px; position: relative; animation: popupShow .35s ease-out;
 }
+
+/* SIGN-UP FLOATING MODAL — updated for mobile & not sticking at top */
+.signup-float {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: flex-start;        /* start from top instead of center */
+  justify-content: center;
+  padding: 40px 0;                /* space at top & bottom */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  overflow-y: auto;               /* scroll if content too tall */
+  -webkit-overflow-scrolling: touch;
+  z-index: 1000;
+}
+
+.signup-card {
+  width: min(500px, 94%);
+  max-height: 90vh;               /* won't exceed viewport height */
+  overflow-y: auto;               /* scroll internally if content too tall */
+  background: rgba(255,255,255,0.96);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  padding: 28px 26px;
+  position: relative;
+  animation: popupShow .35s ease-out;
+}
+
 @keyframes popupShow { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 .signup-card h2 { text-align: center; font-size: 1.4rem; color: #0f2b1e; margin-bottom: 20px; }
 .signup-card .form-control { height: 44px; border-radius: 8px; border: 1px solid #cfe8d7; }
