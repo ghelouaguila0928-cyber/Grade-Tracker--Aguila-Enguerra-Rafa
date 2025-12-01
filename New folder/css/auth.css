@@ -196,6 +196,14 @@ input[type="password"] { -webkit-text-security: none; appearance: none; }
   display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease; z-index: 1000;
 }
+/* Make Sign-Up modal scrollable */
+.signup-float {
+  overflow-y: auto;
+  max-height: 100vh;
+  padding: 20px 0;
+  -webkit-overflow-scrolling: touch;
+}
+
 .signup-float.active { opacity: 1; visibility: visible; }
 .signup-card {
   width: min(500px, 94%); background: rgba(255,255,255,0.96); border-radius: var(--radius);
