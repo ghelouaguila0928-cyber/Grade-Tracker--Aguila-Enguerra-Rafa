@@ -222,5 +222,14 @@
       }
     });
   </script>
+
+  <script>
+   (function(){
+    function dup(){ try{ history.pushState(null,'',location.href); }catch(e){} }
+    window.addEventListener('pageshow', function(e){
+    dup();
+    });
+    })();
+   </script>
 </body>
 </html>
